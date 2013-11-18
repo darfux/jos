@@ -13,7 +13,7 @@ else
 fi
 
 pts=5
-timeout=30
+timeout=5
 preservefs=n
 
 echo_n () {
@@ -53,7 +53,7 @@ runbochs () {
 
 
 
-gmake
+make
 runbochs
 
 score=0
