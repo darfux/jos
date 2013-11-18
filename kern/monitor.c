@@ -9,6 +9,7 @@
 
 #include <kern/console.h>
 #include <kern/monitor.h>
+#include <kern/kdebug.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -59,7 +60,7 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	cprintf("%s\n", "Stack Backtrace:");
+    cprintf("%s\n", "Stack Backtrace:");
     uint32_t ebp;
  
     //get ebp
