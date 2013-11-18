@@ -55,11 +55,33 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+#define ARGNUM 5
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// Your code here.
-	return 0;
+	cprintf("%s\n", "Stack Backtrace:");
+    uint32_t ebp;
+ 
+    //get ebp
+    __asm __volatile("movl %%ebp,%0" : "=r" (ebp));
+ 
+    //loop get
+    while(ebp!=0)
+    {
+        uint32_t eip;
+        eip = *((uint32_t*)ebp+1);//get eip
+        cprintf("ebp %x eip %x args ", ebp,eip);
+        uint32_t arg;
+        int i;
+        for(i=0;i<ARGNUM;i++)//get the five parameters
+        {
+            arg = *((uint32_t*)ebp+2+i);
+            cprintf(" %08x", arg);
+            if(i==ARGNUM-1) cprintf("\n");
+        }
+        ebp = *((uint32_t*)ebp);//set ebp to the caller function's ebp
+    }
+    return 0;
 }
 
 
