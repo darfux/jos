@@ -8,6 +8,7 @@
 
 #include <kern/pmap.h>
 #include <kern/kclock.h>
+#include <kern/monitor.h>
 
 
 // These variables are set by i386_detect_memory()
@@ -219,6 +220,7 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
 void
 i386_vm_init(void)
 {
+	mon_backtrace(0,0,0);
 	pde_t* pgdir;
 	uint32_t cr0;
 	size_t n;
