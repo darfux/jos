@@ -9,6 +9,7 @@
 #include <kern/pmap.h>
 #include <kern/kclock.h>
 
+
 // These variables are set by i386_detect_memory()
 static physaddr_t maxpa;	// Maximum physical address
 size_t npage;			// Amount of physical memory (in pages)
@@ -114,8 +115,11 @@ boot_alloc(uint32_t n, uint32_t align)
 	//	Step 2: save current value of boot_freemem as allocated chunk
 	//	Step 3: increase boot_freemem to record allocation
 	//	Step 4: return allocated chunk
-
-	return NULL;
+	boot_freemem = ROUNDUP(boot_freemem, align);
+	v = boot_freemem;
+	boot_freemem+=n;
+	if(PADDR(boot_freemem)>maxpa) panic("We're out of memory!\n");
+	return v;
 }
 
 //
@@ -145,6 +149,29 @@ boot_alloc(uint32_t n, uint32_t align)
 static pte_t*
 boot_pgdir_walk(pde_t *pgdir, uintptr_t la, int create)
 {
+	pte_t* pt;//page table pointer
+	pde_t* pde = &(pgdir[PDX(la)]);//the respond pde of the pt
+	bool isPresent = (*pde)&PTE_P;
+	if(isPresent)
+	{
+		//get the pte's physical addr and trans it to kernal
+		//addr for using
+		pt = (pte_t *)KADDR(PTE_ADDR(*pde));
+		//find in pte and return the pte of la
+		return &pt[PTX(la)];
+	}
+	else if(create)
+	{//not present and need to create -> alloc the page table
+
+		//alloc by boot_alloc, get va
+		pte_t* tmp = boot_alloc(PGSIZE, PGSIZE);
+		//trans the tmp to pte_addr and set bit flag, then save it in pde
+		*pde = (PTE_ADDR(PADDR(tmp))|PTE_P|PTE_W|PTE_U);
+
+		//same as the isPresent condition
+		pt = (pte_t *)(KADDR(PTE_ADDR(*pde)));
+		return &pt[PTX(la)];
+	}
 	return 0;
 }
 
@@ -156,9 +183,25 @@ boot_pgdir_walk(pde_t *pgdir, uintptr_t la, int create)
 // This function may ONLY be used during initialization,
 // before the page_free_list has been set up.
 //
+
+//=w=
+//This function may means:
+//If I give a la to pgdir then, I'll get the pa that mapped by it.
 static void
 boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int perm)
 {
+	pte_t* pte; 
+    int i;
+    for(i = 0; i<size; i+=PGSIZE)
+    {
+    	//get or create the pte which should respond to 
+    	//the physical addr 'la+i' in pgdir
+        pte = boot_pgdir_walk(pgdir, la+i, 1);
+        //ini the permbit by hint
+        int permbit = perm|PTE_P;
+        //set the content of pte by the physical addr and permbit
+        *pte = PTE_ADDR(pa+i) | permbit;//use bit or, not and!
+    }
 }
 
 // Set up a two-level page table:
@@ -181,7 +224,7 @@ i386_vm_init(void)
 	size_t n;
 
 	// Remove this line when you're ready to test this function.
-	panic("i386_vm_init: This function is not finished\n");
+	// panic("i386_vm_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -212,6 +255,8 @@ i386_vm_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
 
+	boot_map_segment(pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, 
+		PADDR(bootstack), PTE_W|PTE_P);
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE. 
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -220,6 +265,9 @@ i386_vm_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here: 
+	int kernMapSize = 0xFFFFFFFF-KERNBASE+1;
+	if(kernMapSize%PGSIZE) panic("Memory size is not proper for pagesize!");
+	boot_map_segment(pgdir, KERNBASE, 0xFFFFFFFF-KERNBASE+1, 0, PTE_W|PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Make 'pages' point to an array of size 'npage' of 'struct Page'.
@@ -233,7 +281,9 @@ i386_vm_init(void)
 	//    - pages -- kernel RW, user NONE
 	//    - the read-only version mapped at UPAGES -- kernel R, user R
 	// Your code goes here: 
-
+	pages = boot_alloc(npage*sizeof(struct Page), PGSIZE);
+    boot_map_segment(pgdir, UPAGES, npage*sizeof(struct Page),
+             PADDR(pages), PTE_U|PTE_P);
 	// Check that the initial page directory has been set up correctly.
 	check_boot_pgdir();
 
