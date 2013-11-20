@@ -196,7 +196,7 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
     for(i = 0; i<size; i+=PGSIZE)
     {
     	//get or create the pte which should respond to 
-    	//the physical addr 'la+i' in pgdir
+    	//the linear address 'la+i' in pgdir
         pte = boot_pgdir_walk(pgdir, la+i, 1);
         //ini the permbit by hint
         int permbit = perm|PTE_P;
@@ -522,8 +522,12 @@ page_initpp(struct Page *pp)
 int
 page_alloc(struct Page **pp_store)
 {
-	// Fill this function in
-	return -E_NO_MEM;
+	if(LIST_EMPTY(&page_free_list)) return -E_NO_MEM;
+
+	(*pp_store) = LIST_FIRST(&page_free_list);
+	LIST_REMOVE(*pp_store, pp_link);
+	page_initpp(*pp_store);
+	return 0;
 }
 
 //
@@ -533,7 +537,8 @@ page_alloc(struct Page **pp_store)
 void
 page_free(struct Page *pp)
 {
-	// Fill this function in
+	if(pp->pp_ref!=0) panic("free list: Don't return a reffered page to me!\n");
+	LIST_INSERT_HEAD(&page_free_list, pp, pp_link);
 }
 
 //
@@ -565,7 +570,40 @@ page_decref(struct Page* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in
+	struct Page* page;
+	pte_t* pt;//page table pointer
+	pde_t* pde = &(pgdir[PDX(va)]);//the respond pde of the pt
+	bool isPresent = (*pde)&PTE_P;
+	if(isPresent)
+	{
+		//get the pte's physical addr and trans it to kernal
+		//addr for using
+		pt = (pte_t *)KADDR(PTE_ADDR(*pde));
+		//find in pte and return the pte of la
+		return &pt[PTX(va)];
+	}
+	else if(create)
+	{//not present and need to create -> alloc the page table
+
+		//get a page to create page table
+		//alloc by page_alloc, get
+		if(page_alloc(&page)==-E_NO_MEM) return 0;
+
+		//mark for reserve
+        page->pp_ref =1;
+
+		//clean the page to zero
+		//see more in HUST-jos-lecture-part4-p8
+        memset(page2kva(page),0,PGSIZE);
+
+        //record the physical address of page table
+        *pde = page2pa(page)|PTE_P;
+
+        //get the kern address of page table for using now.
+       	pt = (pte_t *)KADDR(page2pa(page));
+        //return the page entry in pt
+        return &pt[PTX(va)];
+	}
 	return NULL;
 }
 
@@ -591,7 +629,25 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 int
 page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm) 
 {
-	// Fill this function in
+	page_remove(pgdir, va);
+
+	pte_t* pte;
+	pte = pgdir_walk(pgdir, va, 1);
+	if(!pte) return -E_NO_MEM;
+
+	int permbit = perm|PTE_P;
+	*pte = page2pa(pp) | permbit;
+    pgdir[PDX(va)] |= perm|PTE_P;
+
+    struct Page * page;
+
+    LIST_FOREACH(page, &page_free_list, pp_link)
+        if(pp==page){
+            LIST_REMOVE(pp, pp_link);
+        }
+
+    pp->pp_ref++;
+    tlb_invalidate(pgdir,va);
 	return 0;
 }
 
@@ -608,8 +664,19 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 struct Page *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
-	// Fill this function in
-	return NULL;
+    pte_t* pte;
+    pte = pgdir_walk(pgdir, va, 0);
+
+    //pte exists and it's content present
+    if(pte && ((*pte)&PTE_P))
+    {
+        if(pte_store)
+        {
+            (*pte_store) = pte;
+        }
+        return  pa2page(PTE_ADDR(*pte));
+    }
+    return 0;
 }
 
 //
@@ -630,7 +697,17 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	// Fill this function in
+    pte_t* pte;
+    struct Page * page;
+
+    //look up whether the page exits
+    page = page_lookup(pgdir, va, &pte);
+    if(page)
+    {
+        page_decref(page);
+        (*pte) = 0x0;
+        tlb_invalidate(pgdir,va);
+    }
 }
 
 //
