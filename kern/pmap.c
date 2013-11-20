@@ -220,7 +220,6 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
 void
 i386_vm_init(void)
 {
-	mon_backtrace(0,0,0);
 	pde_t* pgdir;
 	uint32_t cr0;
 	size_t n;
@@ -438,12 +437,61 @@ page_init(void)
 	//     Which pages are used for page tables and other data structures?
 	//
 	// Change the code to reflect this.
+	//============================================
+
+	//quesetion3's hint: 
+	//--[IOPHYSMEM, EXTPHYSMEM) the two brackets are mathematical,same in 4)
+	//'IOPHYSMEM'&'EXTPHYSMEM' see in <memlayout.h>
+	//The answer to question4:
+	//	As we were using 'boot_freemem' in boot_alloc, this var records the
+	//memeory usage faithfully. 'boot_freemem', above which is free mem,
+	//points to the top of used mem.
+
+	//About the param pp_link in LIST_INSERT_HEAD:
+	//	pp_link is the name of a list element's link_field 
+	//which will be used in the function macro by repalcing
+	//Just like using the attr_name in very highlevel language
+	//More infos see in <queue.h>
+
+	//notice: you may need to convert physical address
+	//to page index before using~
+
+	int unuse=0, used=1;
+	int io_start = IOPHYSMEM/PGSIZE;
+	int io_end = EXTPHYSMEM/PGSIZE;
+
+	//mention the ROUNDUP
+	int freemem_idx = ROUNDUP(PADDR(boot_freemem), PGSIZE)/PGSIZE;
+
+	//1)
+	pages[0].pp_ref = used;
+
+	//2)
 	int i;
-	LIST_INIT(&page_free_list);
-	for (i = 0; i < npage; i++) {
+	for(i=1;i<io_start;i++)
+	{
 		pages[i].pp_ref = 0;
 		LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
 	}
+
+	//3)
+	for(i=io_start; i<io_end; i++)
+	{
+		pages[i].pp_ref = used;
+	}
+
+	//4)
+	for(i=io_end; i<freemem_idx; i++)
+	{
+		pages[i].pp_ref = used;
+	}
+	for(i=freemem_idx; i<npage; i++)
+	{
+		pages[i].pp_ref = 0;
+		LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
+	}
+
+
 }
 
 //
