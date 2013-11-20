@@ -56,33 +56,35 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
-#define ARGNUM 5
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-    cprintf("%s\n", "Stack Backtrace:");
-    uint32_t ebp;
- 
-    //get ebp
-    __asm __volatile("movl %%ebp,%0" : "=r" (ebp));
- 
-    //loop get
-    while(ebp!=0)
+    uint32_t * ebp ;
+    ebp = (uint32_t*)read_ebp();
+    struct Eipdebuginfo  info; 
+    int i;
+    while(ebp)
     {
-        uint32_t eip;
-        eip = *((uint32_t*)ebp+1);//get eip
-        cprintf("ebp %x eip %x args ", ebp,eip);
-        uint32_t arg;
-        int i;
-        for(i=0;i<ARGNUM;i++)//get the five parameters
-        {
-            arg = *((uint32_t*)ebp+2+i);
-            cprintf(" %08x", arg);
-            if(i==ARGNUM-1) cprintf("\n");
-        }
-        ebp = *((uint32_t*)ebp);//set ebp to the caller function's ebp
+        cprintf("ebp %08x eip %08x args %08x %08x %08x %08x %08x\n",
+                (uint32_t)ebp,
+                ebp[1],
+                ebp[2],
+                ebp[3],
+                ebp[4],
+                ebp[5],
+                ebp[6]);
+
+        debuginfo_eip(ebp[1] , &info);
+        
+        cprintf("    %s:%d:%s+%d\n",
+                info.eip_file,
+                info.eip_line,
+                info.eip_fn_name,
+                ebp[1]-info.eip_fn_addr);
+        ebp = (uint32_t *)ebp[0];
     }
-    return 0;
+
+	return 0;
 }
 
 

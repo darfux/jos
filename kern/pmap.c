@@ -8,6 +8,8 @@
 
 #include <kern/pmap.h>
 #include <kern/kclock.h>
+#include <kern/monitor.h>
+
 
 // These variables are set by i386_detect_memory()
 static physaddr_t maxpa;	// Maximum physical address
@@ -114,8 +116,11 @@ boot_alloc(uint32_t n, uint32_t align)
 	//	Step 2: save current value of boot_freemem as allocated chunk
 	//	Step 3: increase boot_freemem to record allocation
 	//	Step 4: return allocated chunk
-
-	return NULL;
+	boot_freemem = ROUNDUP(boot_freemem, align);
+	v = boot_freemem;
+	boot_freemem+=n;
+	if(PADDR(boot_freemem)>maxpa) panic("We're out of memory!\n");
+	return v;
 }
 
 //
@@ -145,6 +150,29 @@ boot_alloc(uint32_t n, uint32_t align)
 static pte_t*
 boot_pgdir_walk(pde_t *pgdir, uintptr_t la, int create)
 {
+	pte_t* pt;//page table pointer
+	pde_t* pde = &(pgdir[PDX(la)]);//the respond pde of the pt
+	bool isPresent = (*pde)&PTE_P;
+	if(isPresent)
+	{
+		//get the pte's physical addr and trans it to kernal
+		//addr for using
+		pt = (pte_t *)KADDR(PTE_ADDR(*pde));
+		//find in pte and return the pte of la
+		return &pt[PTX(la)];
+	}
+	else if(create)
+	{//not present and need to create -> alloc the page table
+
+		//alloc by boot_alloc, get va
+		pte_t* tmp = boot_alloc(PGSIZE, PGSIZE);
+		//trans the tmp to pte_addr and set bit flag, then save it in pde
+		*pde = (PTE_ADDR(PADDR(tmp))|PTE_P|PTE_W|PTE_U);
+
+		//same as the isPresent condition
+		pt = (pte_t *)(KADDR(PTE_ADDR(*pde)));
+		return &pt[PTX(la)];
+	}
 	return 0;
 }
 
@@ -156,9 +184,25 @@ boot_pgdir_walk(pde_t *pgdir, uintptr_t la, int create)
 // This function may ONLY be used during initialization,
 // before the page_free_list has been set up.
 //
+
+//=w=
+//This function may means:
+//If I give a la to pgdir then, I'll get the pa that mapped by it.
 static void
 boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int perm)
 {
+	pte_t* pte; 
+    int i;
+    for(i = 0; i<size; i+=PGSIZE)
+    {
+    	//get or create the pte which should respond to 
+    	//the linear address 'la+i' in pgdir
+        pte = boot_pgdir_walk(pgdir, la+i, 1);
+        //ini the permbit by hint
+        int permbit = perm|PTE_P;
+        //set the content of pte by the physical addr and permbit
+        *pte = PTE_ADDR(pa+i) | permbit;//use bit or, not and!
+    }
 }
 
 // Set up a two-level page table:
@@ -181,7 +225,7 @@ i386_vm_init(void)
 	size_t n;
 
 	// Remove this line when you're ready to test this function.
-	panic("i386_vm_init: This function is not finished\n");
+	// panic("i386_vm_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -212,6 +256,8 @@ i386_vm_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
 
+	boot_map_segment(pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, 
+		PADDR(bootstack), PTE_W|PTE_P);
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE. 
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -220,6 +266,9 @@ i386_vm_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here: 
+	int kernMapSize = 0xFFFFFFFF-KERNBASE+1;
+	if(kernMapSize%PGSIZE) panic("Memory size is not proper for pagesize!");
+	boot_map_segment(pgdir, KERNBASE, 0xFFFFFFFF-KERNBASE+1, 0, PTE_W|PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Make 'pages' point to an array of size 'npage' of 'struct Page'.
@@ -233,7 +282,9 @@ i386_vm_init(void)
 	//    - pages -- kernel RW, user NONE
 	//    - the read-only version mapped at UPAGES -- kernel R, user R
 	// Your code goes here: 
-
+	pages = boot_alloc(npage*sizeof(struct Page), PGSIZE);
+    boot_map_segment(pgdir, UPAGES, npage*sizeof(struct Page),
+             PADDR(pages), PTE_U|PTE_P);
 	// Check that the initial page directory has been set up correctly.
 	check_boot_pgdir();
 
@@ -386,12 +437,61 @@ page_init(void)
 	//     Which pages are used for page tables and other data structures?
 	//
 	// Change the code to reflect this.
+	//============================================
+
+	//quesetion3's hint: 
+	//--[IOPHYSMEM, EXTPHYSMEM) the two brackets are mathematical,same in 4)
+	//'IOPHYSMEM'&'EXTPHYSMEM' see in <memlayout.h>
+	//The answer to question4:
+	//	As we were using 'boot_freemem' in boot_alloc, this var records the
+	//memeory usage faithfully. 'boot_freemem', above which is free mem,
+	//points to the top of used mem.
+
+	//About the param pp_link in LIST_INSERT_HEAD:
+	//	pp_link is the name of a list element's link_field 
+	//which will be used in the function macro by repalcing
+	//Just like using the attr_name in very highlevel language
+	//More infos see in <queue.h>
+
+	//notice: you may need to convert physical address
+	//to page index before using~
+
+	int unuse=0, used=1;
+	int io_start = IOPHYSMEM/PGSIZE;
+	int io_end = EXTPHYSMEM/PGSIZE;
+
+	//mention the ROUNDUP
+	int freemem_idx = ROUNDUP(PADDR(boot_freemem), PGSIZE)/PGSIZE;
+
+	//1)
+	pages[0].pp_ref = used;
+
+	//2)
 	int i;
-	LIST_INIT(&page_free_list);
-	for (i = 0; i < npage; i++) {
+	for(i=1;i<io_start;i++)
+	{
 		pages[i].pp_ref = 0;
 		LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
 	}
+
+	//3)
+	for(i=io_start; i<io_end; i++)
+	{
+		pages[i].pp_ref = used;
+	}
+
+	//4)
+	for(i=io_end; i<freemem_idx; i++)
+	{
+		pages[i].pp_ref = used;
+	}
+	for(i=freemem_idx; i<npage; i++)
+	{
+		pages[i].pp_ref = 0;
+		LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
+	}
+
+
 }
 
 //
@@ -422,8 +522,12 @@ page_initpp(struct Page *pp)
 int
 page_alloc(struct Page **pp_store)
 {
-	// Fill this function in
-	return -E_NO_MEM;
+	if(LIST_EMPTY(&page_free_list)) return -E_NO_MEM;
+
+	(*pp_store) = LIST_FIRST(&page_free_list);
+	LIST_REMOVE(*pp_store, pp_link);
+	page_initpp(*pp_store);
+	return 0;
 }
 
 //
@@ -433,7 +537,8 @@ page_alloc(struct Page **pp_store)
 void
 page_free(struct Page *pp)
 {
-	// Fill this function in
+	if(pp->pp_ref!=0) panic("free list: Don't return a reffered page to me!\n");
+	LIST_INSERT_HEAD(&page_free_list, pp, pp_link);
 }
 
 //
@@ -465,7 +570,40 @@ page_decref(struct Page* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in
+	struct Page* page;
+	pte_t* pt;//page table pointer
+	pde_t* pde = &(pgdir[PDX(va)]);//the respond pde of the pt
+	bool isPresent = (*pde)&PTE_P;
+	if(isPresent)
+	{
+		//get the pte's physical addr and trans it to kernal
+		//addr for using
+		pt = (pte_t *)KADDR(PTE_ADDR(*pde));
+		//find in pte and return the pte of la
+		return &pt[PTX(va)];
+	}
+	else if(create)
+	{//not present and need to create -> alloc the page table
+
+		//get a page to create page table
+		//alloc by page_alloc, get
+		if(page_alloc(&page)==-E_NO_MEM) return 0;
+
+		//mark for reserve
+        page->pp_ref =1;
+
+		//clean the page to zero
+		//see more in HUST-jos-lecture-part4-p8
+        memset(page2kva(page),0,PGSIZE);
+
+        //record the physical address of page table
+        *pde = page2pa(page)|PTE_P;
+
+        //get the kern address of page table for using now.
+       	pt = (pte_t *)KADDR(page2pa(page));
+        //return the page entry in pt
+        return &pt[PTX(va)];
+	}
 	return NULL;
 }
 
@@ -491,7 +629,25 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 int
 page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm) 
 {
-	// Fill this function in
+	page_remove(pgdir, va);
+
+	pte_t* pte;
+	pte = pgdir_walk(pgdir, va, 1);
+	if(!pte) return -E_NO_MEM;
+
+	int permbit = perm|PTE_P;
+	*pte = page2pa(pp) | permbit;
+    pgdir[PDX(va)] |= perm|PTE_P;
+
+    struct Page * page;
+
+    LIST_FOREACH(page, &page_free_list, pp_link)
+        if(pp==page){
+            LIST_REMOVE(pp, pp_link);
+        }
+
+    pp->pp_ref++;
+    tlb_invalidate(pgdir,va);
 	return 0;
 }
 
@@ -508,8 +664,19 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 struct Page *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
-	// Fill this function in
-	return NULL;
+    pte_t* pte;
+    pte = pgdir_walk(pgdir, va, 0);
+
+    //pte exists and it's content present
+    if(pte && ((*pte)&PTE_P))
+    {
+        if(pte_store)
+        {
+            (*pte_store) = pte;
+        }
+        return  pa2page(PTE_ADDR(*pte));
+    }
+    return 0;
 }
 
 //
@@ -530,7 +697,17 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	// Fill this function in
+    pte_t* pte;
+    struct Page * page;
+
+    //look up whether the page exits
+    page = page_lookup(pgdir, va, &pte);
+    if(page)
+    {
+        page_decref(page);
+        (*pte) = 0x0;
+        tlb_invalidate(pgdir,va);
+    }
 }
 
 //
