@@ -1,2 +1,6 @@
 00000000000e[SPEAK] Failed to open /dev/console: Permission denied
 00000000000e[SPEAK] Deactivating beep on console
+03787661343e[CPU0 ] interrupt(): gate descriptor is not valid sys seg (vector=0x30)
+03787661343e[CPU0 ] interrupt(): gate descriptor is not valid sys seg (vector=0x0d)
+03787661343e[CPU0 ] interrupt(): gate descriptor is not valid sys seg (vector=0x08)
+03787661343e[CPU0 ] exception(): 3rd (13) exception with no resolution, shutdown status is 00h, resetting

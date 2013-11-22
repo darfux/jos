@@ -295,7 +295,9 @@ i386_vm_init(void)
 	//    - the image of envs mapped at UENVS  -- kernel R, user R
 	
 	// LAB 3: Your code here.
-
+	envs = boot_alloc(NENV*sizeof(struct Env), PGSIZE);
+	boot_map_segment(pgdir, UENVS, NENV*sizeof(struct Env),
+             PADDR(envs), PTE_U|PTE_P);
 	// Check that the initial page directory has been set up correctly.
 	check_boot_pgdir();
 
@@ -478,6 +480,8 @@ page_init(void)
 	//mention the ROUNDUP
 	int freemem_idx = ROUNDUP(PADDR(boot_freemem), PGSIZE)/PGSIZE;
 
+	LIST_INIT(&page_free_list);
+	
 	//1)
 	pages[0].pp_ref = used;
 
