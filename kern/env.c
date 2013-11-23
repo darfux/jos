@@ -487,7 +487,7 @@ env_run(struct Env *e)
 	curenv = e;
 	e->env_runs++;
 	lcr3(e->env_cr3);
-	__asm __volatile("xchg %bx, %bx");
+	// __asm __volatile("xchg %bx, %bx");
 	env_pop_tf(&(e->env_tf));
 	// panic("env_run not yet implemented");
 }

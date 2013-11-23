@@ -54,6 +54,53 @@ static const char *trapname(int trapno)
 
 //	the func need to use SETGATE
 void _divide();
+void _debug();
+void _nmi();
+void _brkpt();
+void _oflow();
+void _bound();
+void _illop();
+void _device();
+void _dblflt();
+void _tss();
+void _segnp();
+void _stack();
+void _gpflt();
+void _pgflt();
+void _fperr();
+void _align();
+void _mchk();
+void _simderr();
+void _20();
+void _21();
+void _22();
+void _23();
+void _24();
+void _25();
+void _26();
+void _27();
+void _28();
+void _29();
+void _30();
+void _31();
+void _32();
+void _33();
+void _34();
+void _35();
+void _36();
+void _37();
+void _38();
+void _39();
+void _40();
+void _41();
+void _42();
+void _43();
+void _44();
+void _45();
+void _46();
+void _47();
+void  _syscall();
+void _default();
 
 void
 idt_init(void)
@@ -61,8 +108,54 @@ idt_init(void)
 	extern struct Segdesc gdt[];
 	
 	// LAB 3: Your code here.
-	SETGATE(idt[T_DIVIDE],1,GD_KT,_divide,0);
-
+	SETGATE(idt[T_DIVIDE], 1, GD_KT, _divide, 0);
+	SETGATE(idt[T_DEBUG], 1, GD_KT, _debug, 0);
+	SETGATE(idt[T_NMI], 0, GD_KT, _nmi, 0);
+	SETGATE(idt[T_BRKPT], 1, GD_KT, _brkpt, 3);
+	SETGATE(idt[T_OFLOW], 1, GD_KT, _oflow, 0);
+	SETGATE(idt[T_BOUND], 1, GD_KT, _bound, 0);
+	SETGATE(idt[T_ILLOP], 1, GD_KT, _illop, 0);
+	SETGATE(idt[T_DEVICE], 1, GD_KT, _device, 0);
+	SETGATE(idt[T_DBLFLT], 1, GD_KT, _dblflt, 0);
+	SETGATE(idt[T_TSS], 1, GD_KT, _tss, 0);
+	SETGATE(idt[T_SEGNP], 1, GD_KT, _segnp, 0);
+	SETGATE(idt[T_STACK], 1, GD_KT, _stack, 0);
+	SETGATE(idt[T_GPFLT], 1, GD_KT, _gpflt, 0);
+	SETGATE(idt[T_PGFLT], 1, GD_KT, _pgflt, 0);
+	SETGATE(idt[T_FPERR], 1, GD_KT, _fperr, 0);
+	SETGATE(idt[T_ALIGN], 1, GD_KT, _align, 0);
+	SETGATE(idt[T_MCHK], 1, GD_KT, _mchk, 0);
+	SETGATE(idt[T_SIMDERR], 1, GD_KT, _simderr, 0);
+	SETGATE(idt[20], 1, GD_KT, _20, 3);
+	SETGATE(idt[21], 1, GD_KT, _21, 3);
+	SETGATE(idt[22], 1, GD_KT, _22, 3);
+	SETGATE(idt[23], 1, GD_KT, _23, 3);
+	SETGATE(idt[24], 1, GD_KT, _24, 3);
+	SETGATE(idt[25], 1, GD_KT, _25, 3);
+	SETGATE(idt[26], 1, GD_KT, _26, 3);
+	SETGATE(idt[27], 1, GD_KT, _27, 3);
+	SETGATE(idt[28], 1, GD_KT, _28, 3);
+	SETGATE(idt[29], 1, GD_KT, _29, 3);
+	SETGATE(idt[30], 1, GD_KT, _30, 3);
+	SETGATE(idt[31], 1, GD_KT, _31, 3);
+	SETGATE(idt[32], 1, GD_KT, _32, 3);
+	SETGATE(idt[33], 1, GD_KT, _33, 3);
+	SETGATE(idt[34], 1, GD_KT, _34, 3);
+	SETGATE(idt[35], 1, GD_KT, _35, 3);
+	SETGATE(idt[36], 1, GD_KT, _36, 3);
+	SETGATE(idt[37], 1, GD_KT, _37, 3);
+	SETGATE(idt[38], 1, GD_KT, _38, 3);
+	SETGATE(idt[39], 1, GD_KT, _39, 3);
+	SETGATE(idt[40], 1, GD_KT, _40, 3);
+	SETGATE(idt[41], 1, GD_KT, _41, 3);
+	SETGATE(idt[42], 1, GD_KT, _42, 3);
+	SETGATE(idt[43], 1, GD_KT, _43, 3);
+	SETGATE(idt[44], 1, GD_KT, _44, 3);
+	SETGATE(idt[45], 1, GD_KT, _45, 3);
+	SETGATE(idt[46], 1, GD_KT, _46, 3);
+	SETGATE(idt[47], 1, GD_KT, _47, 3);
+	SETGATE(idt[T_SYSCALL], 1, GD_KT, _syscall, 3);
+	SETGATE(idt[T_DEFAULT], 1, GD_KT, _default, 0);
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
 	ts.ts_esp0 = KSTACKTOP;
@@ -114,7 +207,6 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
-	
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
