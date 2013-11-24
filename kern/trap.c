@@ -207,6 +207,7 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	struct PushRegs pr = tf->tf_regs;//can not put in the switch statement
 	switch(tf->tf_trapno)
 	{
 		case T_PGFLT:
@@ -214,6 +215,11 @@ trap_dispatch(struct Trapframe *tf)
 			return;
 		case T_BRKPT:
 			monitor(tf);
+			return;
+		case T_SYSCALL:
+			//syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
+			// up to five parameters in DX, CX, BX, DI, SI. --from lib/syscall.c
+			tf->tf_regs.reg_eax = syscall(pr.reg_eax, pr.reg_edx, pr.reg_ecx, pr.reg_ebx, pr.reg_edi, pr.reg_esi);
 			return;
 	}
 	// Unexpected trap: The user process or the kernel has a bug.

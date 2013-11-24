@@ -21,7 +21,7 @@ sys_cputs(const char *s, size_t len)
 	// Destroy the environment if not.
 	
 	// LAB 3: Your code here.
-
+	user_mem_assert(curenv, s, len, 0);//see in pmap.c, the Destroy will be done also in the function
 	// Print the string supplied by the user.
 	cprintf("%.*s", len, s);
 }
@@ -79,13 +79,26 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
 
-	panic("syscall not implemented");
+	// panic("syscall not implemented");
 
         int ret = 0;
         void* func = NULL;
 	//	To help you finish this job,TA has write part of the code
 	//	Now you just have to set the pointer func to the write function
-
+		switch (syscallno)
+		{
+			case SYS_cputs:
+				func = &sys_cputs;
+				break;
+			case SYS_cgetc:
+				func = &sys_cgetc;
+			case SYS_getenvid:
+				func = &sys_getenvid;
+			case SYS_env_destroy:
+				func = &sys_env_destroy;
+			default: return -E_INVAL; //do as the ex_description said
+		}
+		
         asm volatile("push %%esi\n"
                 "push %%edi\n"
                 "push %%ebx\n"

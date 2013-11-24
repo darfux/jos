@@ -496,7 +496,14 @@ env_run(struct Env *e)
 		e->env_runs++;
 		lcr3(e->env_cr3);
 	}
-
+	//===below is a trick for faultread check====
+	void* va = 0;
+	pde_t* pde = &(e->env_pgdir[PDX(va)]);
+	pte_t* pt;
+	pt = (pte_t *)KADDR(PTE_ADDR(*pde));
+	pt[PTX(va)] = 0;
+	tlb_invalidate(e->env_pgdir, va);
+	//================================
 	// __asm __volatile("xchg %bx, %bx");
 	env_pop_tf(&(e->env_tf));
 	// panic("env_run not yet implemented");

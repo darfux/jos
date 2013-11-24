@@ -1,0 +1,6 @@
+	pde_t* pde = &(e->env_pgdir[PDX(8191)]);
+	pte_t* pt;
+	pt = (pte_t *)KADDR(PTE_ADDR(*pde));
+
+    cprintf("%x\n", pt[PTX(8191)]);
+	__asm __volatile("xchg %bx, %bx");
