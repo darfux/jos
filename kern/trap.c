@@ -212,6 +212,9 @@ trap_dispatch(struct Trapframe *tf)
 		case T_PGFLT:
 			page_fault_handler(tf);
 			return;
+		case T_BRKPT:
+			monitor(tf);
+			return;
 	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -291,7 +294,7 @@ page_fault_handler(struct Trapframe *tf)
 	// LAB 4: Your code here.
 
 	// Destroy the environment that caused the fault.
-	cprintf("[%08x] user fault va %d ip %08x\n",
+	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
 	print_trapframe(tf);
 	env_destroy(curenv);
