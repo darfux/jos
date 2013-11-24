@@ -122,7 +122,13 @@ env_setup_vm(struct Env *e)
 
 	e->env_pgdir = page2kva(p);
 	e->env_cr3 = page2pa(p);
-	memcpy(e->env_pgdir, boot_pgdir, PGSIZE);
+
+	memset(e->env_pgdir, 0, PGSIZE);
+
+	for (i=PDX(UTOP); i<=PDX(~0); i++)
+	{
+	  e->env_pgdir[i] = boot_pgdir[i];
+	}
 	
 	if(p->pp_ref!=0) panic("You do not give me a fresh page!\n");
 	p->pp_ref=1;
@@ -484,9 +490,13 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 	
 	// LAB 3: Your code here.
-	curenv = e;
-	e->env_runs++;
-	lcr3(e->env_cr3);
+	if(curenv!=e)
+	{
+		curenv = e;
+		e->env_runs++;
+		lcr3(e->env_cr3);
+	}
+
 	// __asm __volatile("xchg %bx, %bx");
 	env_pop_tf(&(e->env_tf));
 	// panic("env_run not yet implemented");
