@@ -80,13 +80,20 @@ def createSetGATE(traps)
 		type = tmp[1]
 		func = type[1...type.length].downcase
 		declare += "void #{func}();\n"
-		setgate += "SETGATE(idt[#{type}], 1, GD_KT, #{func}, 0);\n"
+		case type
+			when "T_NMI"
+				setgate += "SETGATE(idt[#{type}], 0, GD_KT, #{func}, 0);\n"
+			when "T_BRKPT"
+				setgate += "SETGATE(idt[#{type}], 1, GD_KT, #{func}, 3);\n"
+			else
+				setgate += "SETGATE(idt[#{type}], 1, GD_KT, #{func}, 0);\n"
+		end
 	end
 	for i in 20..47
 		declare += "void _#{i}();\n"
 		setgate += "SETGATE(idt[#{i}], 1, GD_KT, _#{i}, 3);\n"
 	end
-	declare += "void  _syscall();\nvoid _default();\n"
+	declare += "void _syscall();\nvoid _default();\n"
 	setgate += "SETGATE(idt[T_SYSCALL], 1, GD_KT, _syscall, 3);\nSETGATE(idt[T_DEFAULT], 1, GD_KT, _default, 0);\n"
 
 	# print declare
