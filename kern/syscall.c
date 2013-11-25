@@ -10,6 +10,7 @@
 #include <kern/trap.h>
 #include <kern/syscall.h>
 #include <kern/console.h>
+#include <kern/monitor.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -78,42 +79,59 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Call the function corresponding to the 'syscallno' parameter.
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
-
+	uint32_t tmp;
+	switch(syscallno)
+	{
+        case SYS_cputs:
+        	sys_cputs((char *)a1, (size_t)a2);
+            return 0;
+        case SYS_cgetc:
+            return sys_cgetc();
+        case SYS_getenvid:
+            return sys_getenvid();
+        case SYS_env_destroy:
+            return sys_env_destroy((envid_t)a1);
+        default:
+            return -E_INVAL;
+    }
 	// panic("syscall not implemented");
 
-        int ret = 0;
-        void* func = NULL;
-	//	To help you finish this job,TA has write part of the code
-	//	Now you just have to set the pointer func to the write function
-		switch (syscallno)
-		{
-			case SYS_cputs:
-				func = &sys_cputs;
-				break;
-			case SYS_cgetc:
-				func = &sys_cgetc;
-			case SYS_getenvid:
-				func = &sys_getenvid;
-			case SYS_env_destroy:
-				func = &sys_env_destroy;
-			default: return -E_INVAL; //do as the ex_description said
-		}
-		
-        asm volatile("push %%esi\n"
-                "push %%edi\n"
-                "push %%ebx\n"
-                "push %%ecx\n"
-                "push %%edx\n"
-                "call *%1\n"
-                : "=a" (ret)
-                : "m" (func),
-                  "d" (a1),
-                  "c" (a2),
-                  "b" (a3),
-                  "D" (a4),
-                  "S" (a5)
-                : "cc", "memory");
+ //        int ret = 0;
+ //        void* func = NULL;
+	// //	To help you finish this job,TA has write part of the code
+	// //	Now you just have to set the pointer func to the write function
+	// 	switch (syscallno)
+	// 	{
+	// 		case SYS_cputs:
+	// 			func = &sys_cputs;
+	// 			break;
+	// 		case SYS_cgetc:
+	// 			func = &sys_cgetc;
+	// 			break;
+	// 		case SYS_getenvid:
+	// 			func = &sys_getenvid;
+	// 			break;
+	// 		case SYS_env_destroy:
+	// 			func = &sys_env_destroy;
+	// 			break;
+	// 		default: return -E_INVAL; //do as the ex_description said
+	// 	}
 
-        return ret;
+ //        asm volatile("push %%esi\n"
+ //                "push %%edi\n"
+ //                "push %%ebx\n"
+ //                "push %%ecx\n"
+ //                "push %%edx\n"
+ //                "call *%1\n"
+ //                : "=a" (ret)
+ //                : "m" (func),
+ //                  "d" (a1),
+ //                  "c" (a2),
+ //                  "b" (a3),
+ //                  "D" (a4),
+ //                  "S" (a5)
+ //                : "cc", "memory");
+	// 	__asm __volatile("xchg %bx, %bx");
+ //        return ret;
 }
 

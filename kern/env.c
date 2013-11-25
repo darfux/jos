@@ -77,6 +77,7 @@ env_init(void)
 	for(i=NENV-1; i>=0; i--)
 	{
 		envs[i].env_id = 0;
+		envs[i].env_status = ENV_FREE;
 		LIST_INSERT_HEAD(&env_free_list, &envs[i], env_link);
 	}
 }
@@ -384,7 +385,6 @@ env_create(uint8_t *binary, size_t size)
 	int error = env_alloc(&env, 0);
 	if(error!=0) panic("Wrong create env. Info %e", error);
 	load_icode(env, binary, size);
-	envs[0] = *env;
 }
 
 //
@@ -494,6 +494,7 @@ env_run(struct Env *e)
 	{
 		curenv = e;
 		e->env_runs++;
+		// cprintf("cenvid %d\n", e->env_id);
 		lcr3(e->env_cr3);
 	}
 	//===below is a trick for faultread check====

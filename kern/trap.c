@@ -219,6 +219,7 @@ trap_dispatch(struct Trapframe *tf)
 		case T_SYSCALL:
 			//syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
 			// up to five parameters in DX, CX, BX, DI, SI. --from lib/syscall.c
+			// syscall(pr.reg_eax, pr.reg_edx, pr.reg_ecx, pr.reg_ebx, pr.reg_edi, pr.reg_esi);
 			tf->tf_regs.reg_eax = syscall(pr.reg_eax, pr.reg_edx, pr.reg_ecx, pr.reg_ebx, pr.reg_edi, pr.reg_esi);
 			return;
 	}

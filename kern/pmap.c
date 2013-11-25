@@ -257,7 +257,7 @@ i386_vm_init(void)
 	// Your code goes here:
 	
 	boot_map_segment(pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, 
-		PADDR(bootstack), PTE_W|PTE_P);
+		PADDR(bootstack), PTE_W);
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE. 
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -269,7 +269,7 @@ i386_vm_init(void)
 
 	int kernMapSize = 0xFFFFFFFF-KERNBASE+1;
 	if(kernMapSize%PGSIZE) panic("Memory size is not proper for pagesize!");
-	boot_map_segment(pgdir, KERNBASE, 0xFFFFFFFF-KERNBASE+1, 0, PTE_W|PTE_P);
+	boot_map_segment(pgdir, KERNBASE, 0xFFFFFFFF-KERNBASE+1, 0, PTE_W);
 	//////////////////////////////////////////////////////////////////////
 	// Make 'pages' point to an array of size 'npage' of 'struct Page'.
 	// The kernel uses this structure to keep track of physical pages;
@@ -285,7 +285,7 @@ i386_vm_init(void)
 	
 	pages = boot_alloc(npage*sizeof(struct Page), PGSIZE);
     boot_map_segment(pgdir, UPAGES, npage*sizeof(struct Page),
-             PADDR(pages), PTE_U|PTE_P);
+             PADDR(pages), PTE_U);
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// Map this array read-only by the user at linear address UENVS
@@ -297,7 +297,7 @@ i386_vm_init(void)
 	// LAB 3: Your code here.
 	envs = boot_alloc(NENV*sizeof(struct Env), PGSIZE);
 	boot_map_segment(pgdir, UENVS, NENV*sizeof(struct Env),
-             PADDR(envs), PTE_U|PTE_P);
+             PADDR(envs), PTE_U);
 	// Check that the initial page directory has been set up correctly.
 	check_boot_pgdir();
 
