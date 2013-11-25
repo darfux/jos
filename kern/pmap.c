@@ -766,8 +766,48 @@ static uintptr_t user_mem_check_addr;
 int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
-	// LAB 3: Your code here. 
+	// LAB 3: Your code here.
+    // user_mem_check_addr = (uintptr_t)va;
+    // if(((uint32_t)va + len) >= ULIM) 
+    //     return -E_FAULT;
 
+    // uintptr_t v;
+    // pte_t * pte = NULL;
+    // for(v = (uintptr_t)va ;v <= ROUNDUP(((uintptr_t)va+len),PGSIZE); v += PGSIZE){
+    //     user_mem_check_addr = v;
+            
+    //     if(!(pte = pgdir_walk(env->env_pgdir, (void *)v, 0)))
+    //         return -E_FAULT;
+        
+    //     if(!(*pte & PTE_P))
+    //         return -E_FAULT;
+        
+    //     if(((*pte & PTE_U)==1) &&
+    //         ((perm & PTE_U)==0))
+    //         return -E_FAULT;
+
+    //     if(((*pte&PTE_W)==0) &&
+    //        ((perm&PTE_W)==1))
+    //         return -E_FAULT;
+        
+    // }
+    // user_mem_check_addr = 0;
+    // return 0;
+    user_mem_check_addr = (uintptr_t)va;
+	if((size_t)va>=ULIM) return -E_FAULT;
+	uint32_t start = ROUNDDOWN((size_t)va, PGSIZE);
+	uint32_t range = (size_t)va+len;
+	uint32_t roundRange = ROUNDUP(range, PGSIZE);
+	uint32_t end = roundRange==range?roundRange+1:roundRange;
+
+	uint32_t i;
+	for(i=start; i<end;)
+	{
+		pte_t* pte= pgdir_walk(env->env_pgdir, (void*)i, 0);
+		int accessable = (*pte) & (perm|PTE_P);
+		if(!accessable) return -E_FAULT;
+		user_mem_check_addr = i+=PGSIZE;
+	}
 	return 0;
 }
 
