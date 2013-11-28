@@ -160,6 +160,7 @@ idt_init(void)
 	// when we trap to the kernel.
 	ts.ts_esp0 = KSTACKTOP;
 	ts.ts_ss0 = GD_KD;
+	ts.ts_cr3 = 0;
 
 	// Initialize the TSS field of the gdt.
 	gdt[GD_TSS >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
@@ -237,7 +238,7 @@ void
 trap(struct Trapframe *tf)
 {
 	cprintf("Incoming TRAP frame at %p\n", tf);
-
+	// __asm __volatile("xchg %bx, %bx");
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
 		// Copy trap frame (which is currently on the stack)

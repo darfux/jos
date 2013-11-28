@@ -473,7 +473,7 @@ env_pop_tf(struct Trapframe *tf)
 // Note: if this is the first call to env_run, curenv is NULL.
 //  (This function does not return.)
 //
-void clearPte(struct Env *, void* );
+void setPte(struct Env *, void*, int );
 void
 env_run(struct Env *e)
 {
@@ -499,7 +499,7 @@ env_run(struct Env *e)
 		lcr3(e->env_cr3);
 	}
 	//===below is a trick for faultread check====
-	clearPte(e, (void*)0);
+	// setPte(e, (void*)0, PTE_P);
 	// clearPte(e, (void*)1);
 	//================================
 	// __asm __volatile("xchg %bx, %bx");
@@ -507,11 +507,11 @@ env_run(struct Env *e)
 	// panic("env_run not yet implemented");
 }
 
-void clearPte(struct Env *e, void* va)
+void setPte(struct Env *e, void* va, int value)
 {
 	pde_t* pde = &(e->env_pgdir[PDX(va)]);
 	pte_t* pt;
 	pt = (pte_t *)KADDR(PTE_ADDR(*pde));
-	pt[PTX(va)] = 0;
+	pt[PTX(va)] = value;
 	tlb_invalidate(e->env_pgdir, va);
 }
