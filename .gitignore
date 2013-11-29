@@ -1,3 +1,4 @@
 /obj
 bochs.out
 bochs.log
+*.log

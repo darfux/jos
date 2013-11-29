@@ -72,6 +72,14 @@ void
 env_init(void)
 {
 	// LAB 3: Your code here.
+	int i;	
+	LIST_INIT(&env_free_list);//necessary
+	for(i=NENV-1; i>=0; i--)
+	{
+		envs[i].env_id = 0;
+		envs[i].env_status = ENV_FREE;
+		LIST_INSERT_HEAD(&env_free_list, &envs[i], env_link);
+	}
 }
 
 //
@@ -110,7 +118,22 @@ env_setup_vm(struct Env *e)
 	//	env_pgdir's pp_ref!
 
 	// LAB 3: Your code here.
+	e->env_pgdir = page2kva(p);
+	int pageNum = (UPAGES-UTOP)/PGSIZE;
 
+	e->env_pgdir = page2kva(p);
+	e->env_cr3 = page2pa(p);
+
+	memset(e->env_pgdir, 0, PGSIZE);
+
+	for (i=PDX(UTOP); i<=PDX(~0); i++)
+	{
+	  e->env_pgdir[i] = boot_pgdir[i];
+	}
+	
+	if(p->pp_ref!=0) panic("You do not give me a fresh page!\n");
+	p->pp_ref=1;
+	
 	// VPT and UVPT map the env's own page table, with
 	// different permissions.
 	e->env_pgdir[PDX(VPT)]  = e->env_cr3 | PTE_P | PTE_W;
@@ -194,6 +217,20 @@ segment_alloc(struct Env *e, void *va, size_t len)
 	// Hint: It is easier to use segment_alloc if the caller can pass
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round len up.
+	len = ROUNDUP(len, PGSIZE);
+	va = ROUNDDOWN(va, PGSIZE);
+	struct Page* tmp;
+	int i;
+	int error;
+	for(i=0; i<len/PGSIZE; i++)
+	{
+		//get a page from free_list
+		error = page_alloc(&tmp);
+		if(error!=0) panic("Segment alloc fails.Info: %e\n", error);
+		//map the page to va
+		error = page_insert(e->env_pgdir, tmp, va+i*PGSIZE, PTE_W|PTE_U|PTE_P);
+		if(error!=0) panic("Segment alloc fails.Info: %e\n", error);
+	}
 }
 
 //
@@ -344,6 +381,10 @@ void
 env_create(uint8_t *binary, size_t size)
 {
 	// LAB 3: Your code here.
+	struct Env* env;
+	int error = env_alloc(&env, 0);
+	if(error!=0) panic("Wrong create env. Info %e", error);
+	load_icode(env, binary, size);
 }
 
 //
@@ -432,6 +473,7 @@ env_pop_tf(struct Trapframe *tf)
 // Note: if this is the first call to env_run, curenv is NULL.
 //  (This function does not return.)
 //
+void setPte(struct Env *, void*, int );
 void
 env_run(struct Env *e)
 {
@@ -449,7 +491,27 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 	
 	// LAB 3: Your code here.
-
-        panic("env_run not yet implemented");
+	if(curenv!=e)
+	{
+		curenv = e;
+		e->env_runs++;
+		// cprintf("cenvid %d\n", e->env_id);
+		lcr3(e->env_cr3);
+	}
+	//===below is a trick for faultread check====
+	// setPte(e, (void*)0, PTE_P);
+	// clearPte(e, (void*)1);
+	//================================
+	// __asm __volatile("xchg %bx, %bx");
+	env_pop_tf(&(e->env_tf));
+	// panic("env_run not yet implemented");
 }
 
+void setPte(struct Env *e, void* va, int value)
+{
+	pde_t* pde = &(e->env_pgdir[PDX(va)]);
+	pte_t* pt;
+	pt = (pte_t *)KADDR(PTE_ADDR(*pde));
+	pt[PTX(va)] = value;
+	tlb_invalidate(e->env_pgdir, va);
+}

@@ -1,0 +1,2 @@
+make grade LD=/tools/binutils-2.15/bin/ld AS=/tools/binutils-2.15/bin/as
+make LD=/tools/binutils-2.15/bin/ld AS=/tools/binutils-2.15/bin/as
