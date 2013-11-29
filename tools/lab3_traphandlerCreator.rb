@@ -1,6 +1,68 @@
 #env:ruby 2.0.0p247 (2013-06-27 revision 41674) [i686-linux]
 #by fux
 #for lab3's code in trapentry.S
+
+def createTrapHandler(traps, traperror)
+	table = Hash.new(false)
+
+	traperror.each_line do |line|
+		attrs = line.split(' ')
+		intNum = attrs[-2]
+		hasCode = attrs[-1]=="Yes"
+		table[intNum.to_sym] = true if hasCode
+	end
+
+	traps.each_line do |trap|
+		tmp = trap.split(' ')
+		comment = tmp[3...tmp.size].join(' ') #not to_s
+		intNum = tmp[2]
+		type = tmp[1]
+		func = type[1...type.length].downcase
+		if table[intNum.to_sym]
+			print "TRAPHANDLER(#{func}, #{type});"
+		else
+			print "TRAPHANDLER_NOEC(#{func}, #{type});"
+		end
+		puts "\t"+comment
+	end
+	puts
+	for i in 20..47
+		puts "TRAPHANDLER_NOEC(_#{i}, #{i});"
+	end
+	puts
+	puts "TRAPHANDLER_NOEC(_syscall, T_SYSCALL);\nTRAPHANDLER_NOEC(_default, T_DEFAULT);"
+end
+
+def createSetGATE(traps)
+	declare = ""
+	setgate = ""
+	traps.each_line do |trap|
+		tmp = trap.split(' ')
+		type = tmp[1]
+		func = type[1...type.length].downcase
+		declare += "void #{func}();\n"
+		case type
+			when "T_NMI"
+				setgate += "SETGATE(idt[#{type}], 0, GD_KT, #{func}, 0);\n"
+			when "T_BRKPT"
+				setgate += "SETGATE(idt[#{type}], 1, GD_KT, #{func}, 3);\n"
+			else
+				setgate += "SETGATE(idt[#{type}], 1, GD_KT, #{func}, 0);\n"
+		end
+	end
+	for i in 20..47
+		declare += "void _#{i}();\n"
+		setgate += "SETGATE(idt[#{i}], 1, GD_KT, _#{i}, 3);\n"
+	end
+	declare += "void _syscall();\nvoid _default();\n"
+	setgate += "SETGATE(idt[T_SYSCALL], 1, GD_KT, _syscall, 3);\nSETGATE(idt[T_DEFAULT], 1, GD_KT, _default, 0);\n"
+
+	print declare
+	puts
+	print setgate
+end
+
+#get from kern/trap.h
 traps =<<tt
 #define T_DIVIDE     0		// divide error
 #define T_DEBUG      1		// debug exception
@@ -41,63 +103,9 @@ Page fault                        14            Yes
 Coprocessor error                 16            No
 Two-byte SW interrupt             0-255         No
 te
-def createTrapHandler(traps, traperror)
-	table = Hash.new(false)
 
-	traperror.each_line do |line|
-		attrs = line.split(' ')
-		intNum = attrs[-2]
-		hasCode = attrs[-1]=="Yes"
-		table[intNum.to_sym] = true if hasCode
-	end
-
-	traps.each_line do |trap|
-		tmp = trap.split(' ')
-		comment = tmp[3...tmp.size].join(' ') #not to_s
-		intNum = tmp[2]
-		type = tmp[1]
-		func = type[1...type.length].downcase
-		if table[intNum.to_sym]
-			print "TRAPHANDLER(#{func}, #{type});"
-		else
-			print "TRAPHANDLER_NOEC(#{func}, #{type});"
-		end
-		puts "\t"+comment
-	end
-
-	for i in 20..47
-		puts "TRAPHANDLER_NOEC(_#{i}, #{i});"
-	end
-
-	puts "TRAPHANDLER_NOEC(_syscall, T_SYSCALL);\nTRAPHANDLER_NOEC(_default, T_DEFAULT);"
-end
-
-def createSetGATE(traps)
-	declare = ""
-	setgate = ""
-	traps.each_line do |trap|
-		tmp = trap.split(' ')
-		type = tmp[1]
-		func = type[1...type.length].downcase
-		declare += "void #{func}();\n"
-		case type
-			when "T_NMI"
-				setgate += "SETGATE(idt[#{type}], 0, GD_KT, #{func}, 0);\n"
-			when "T_BRKPT"
-				setgate += "SETGATE(idt[#{type}], 1, GD_KT, #{func}, 3);\n"
-			else
-				setgate += "SETGATE(idt[#{type}], 1, GD_KT, #{func}, 0);\n"
-		end
-	end
-	for i in 20..47
-		declare += "void _#{i}();\n"
-		setgate += "SETGATE(idt[#{i}], 1, GD_KT, _#{i}, 3);\n"
-	end
-	declare += "void _syscall();\nvoid _default();\n"
-	setgate += "SETGATE(idt[T_SYSCALL], 1, GD_KT, _syscall, 3);\nSETGATE(idt[T_DEFAULT], 1, GD_KT, _default, 0);\n"
-
-	# print declare
-	print setgate
-end
-
+puts '//======TrapHandlers========'
+createTrapHandler traps,traperror
+puts
+puts '//======SetGATE========'
 createSetGATE traps
