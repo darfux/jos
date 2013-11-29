@@ -131,7 +131,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
  //                  "D" (a4),
  //                  "S" (a5)
  //                : "cc", "memory");
-	// 	__asm __volatile("xchg %bx, %bx");
+    //asm volatile("add $0x14,%esp");
  //        return ret;
 }
 
