@@ -70,7 +70,7 @@ PERL	:= perl
 # Compiler flags
 # -fno-builtin is required to avoid refs to undefined functions in the kernel.
 # Only optimize to -O1 to discourage inlining, which complicates backtraces.
-CFLAGS	:= $(CFLAGS) $(DEFS) $(LABDEFS) -O -fno-builtin -I$(TOP) -MD -Wall -Wno-format -Wno-unused -Werror -gstabs -fno-stack-protector -O0
+CFLAGS	:= $(CFLAGS) $(DEFS) $(LABDEFS) -O -fno-builtin -I$(TOP) -MD -Wall -Wno-format -Wno-unused -Werror -gstabs -fno-stack-protector
 
 # Linker flags for JOS user programs
 ULDFLAGS := -T user/user.ld
@@ -125,7 +125,7 @@ grade: $(LABSETUP)grade.sh
 	sh $(LABSETUP)grade.sh
 
 handin: tarball
-	@echo Send mail to hldyxh@mail.nankaiedu.cn or LiangHuang@imi.nankai.edu.cn 
+	@echo Please visit http://pdos.csail.mit.edu/cgi-bin/828handin
 	@echo and upload lab$(LAB)-handin.tar.gz.  Thanks!
 
 tarball: realclean
