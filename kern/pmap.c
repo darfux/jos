@@ -811,13 +811,27 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 	uint32_t range = (size_t)va+len;
 	uint32_t roundRange = ROUNDUP(range, PGSIZE);
 	uint32_t end = roundRange==range?roundRange+1:roundRange;
+	pte_t* pte;
 
 	uint32_t i;
 	for(i=start; i<end;)
 	{
-		pte_t* pte= pgdir_walk(env->env_pgdir, (void*)i, 0);
-		int accessable = (*pte) & (perm|PTE_P);
-		if(!accessable) return -E_FAULT;
+	    user_mem_check_addr = i;
+			
+	    if(!(pte = pgdir_walk(env->env_pgdir, (void *)i, 0)))
+	        return -E_FAULT;
+		
+	    if(!(*pte & PTE_P))
+	        return -E_FAULT;
+		
+	    if(((*pte & PTE_U)==1) &&
+	        ((perm & PTE_U)==0))
+	        return -E_FAULT;
+
+	    if(((*pte&PTE_W)==0) &&
+	       ((perm&PTE_W)==1))
+	        return -E_FAULT;
+		
 		user_mem_check_addr = i+=PGSIZE;
 	}
 	return 0;
