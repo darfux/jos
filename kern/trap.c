@@ -328,7 +328,7 @@ page_fault_handler(struct Trapframe *tf)
 	// UXSTACKTOP)
 	user_mem_assert(curenv, (void *) UXSTACKTOP - 1, 1, PTE_U | PTE_W | PTE_P); 
 
-	if(tf->tf_esp <= UXSTACKTOP-1) 
+	if(tf->tf_esp <= UXSTACKTOP-1 && (tf->tf_esp >= UXSTACKTOP-PGSIZE)) 
 	{
 		//Already in page fault upcall
 		currentEsp = (uint32_t *) (tf->tf_esp);
@@ -345,6 +345,11 @@ page_fault_handler(struct Trapframe *tf)
 	uint32_t* espWill = currentEsp-tfsize/sizeof(uint32_t*);
 	user_mem_assert(curenv, (void*)espWill, tfsize, PTE_U | PTE_W);	
 	
+	//w\\
+	//below is a trick using inc/string.c's memcpy
+	//to 'push' a UTrapframe in the stack
+
+	//init a temp UTrapframe
 	struct UTrapframe tmp = 
 	{
 		.utf_fault_va	= fault_va, 
@@ -355,13 +360,20 @@ page_fault_handler(struct Trapframe *tf)
 		.utf_esp		= tf->tf_esp
 	}; 
 
+	//move the currentEsp to the position after 'push'
+	//a UTrapframe
 	currentEsp -= tfsize/sizeof(uint32_t*);
+
+	//use memcpy to 'push' the UTrapframe tmp into uxstack
 	memcpy(currentEsp, &tmp, sizeof(struct UTrapframe));
 
+	//set proper eip&esp
 	curenv->env_tf.tf_eip = (uintptr_t) curenv->env_pgfault_upcall;
 	curenv->env_tf.tf_esp = (uintptr_t) currentEsp;
 	
+	//run env
 	env_run(curenv);
+	
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
