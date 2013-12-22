@@ -365,7 +365,59 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_try_send not implemented");
+	// panic("sys_ipc_try_send not implemented");
+
+	int error;
+	struct Env* env;
+	struct Page *page;
+	int mapped = 0;
+
+	error = envid2env(envid, &env, 0);
+	if(error< 0) return error;
+	
+	if(!env->env_ipc_recving) return -E_IPC_NOT_RECV;
+	
+	if(env->env_ipc_dstva!=0 && srcva!= 0)
+	{
+		
+		//	-E_INVAL if srcva < UTOP but srcva is not mapped in the caller's
+		//		address space.
+		int overTop = (uintptr_t)srcva >= UTOP;
+		if(overTop) return -E_INVAL;
+
+		//	-E_INVAL if srcva < UTOP but srcva is not page-aligned.
+		int notAligned = (uintptr_t)srcva%PGSIZE;
+		if(notAligned) return -E_INVAL;
+		
+		//	-E_INVAL if srcva < UTOP and perm is inappropriate
+		//		(see sys_page_alloc).
+		int permWrong = (perm & (PTE_U|PTE_P)) != (PTE_U|PTE_P) && (perm & ~PTE_USER);
+		if(permWrong) return -E_INVAL;
+
+		//	-E_INVAL if srcva < UTOP but srcva is not mapped in the caller's
+		//		address space.
+		page = page_lookup(curenv->env_pgdir, srcva, 0);
+		int notMap = (page==NULL);
+		if(notMap) return -E_INVAL;
+
+		//	-E_NO_MEM if there's not enough memory to map srcva in envid's
+		//		address space.
+		int noMem =  (page_insert(env->env_pgdir, page, env->env_ipc_dstva, perm) < 0);
+		if (noMem) return -E_NO_MEM;
+
+		mapped = 1;
+	}
+
+	env->env_ipc_recving = 0;
+	env->env_ipc_from = curenv->env_id;
+	env->env_ipc_value = value;
+	mapped ? (env->env_ipc_perm = perm) : (env->env_ipc_perm = 0);
+
+	env->env_status = ENV_RUNNABLE;
+
+	// Returns 0 on success where no page mapping occurs,
+	// 1 on success where a page mapping occurs, and < 0 on error.
+	return mapped;
 }
 
 // Block until a value is ready.  Record that you want to receive
@@ -383,8 +435,19 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_recv not implemented");
-	return 0;
+	// panic("sys_ipc_recv not implemented");
+	// return 0;
+	int overTop = ((uintptr_t)dstva >= UTOP);
+	int notAligned = (uintptr_t)dstva%PGSIZE;
+	if(overTop||notAligned) return -E_INVAL;
+	
+	curenv->env_ipc_recving = 1;
+	curenv->env_ipc_dstva = dstva;
+	curenv->env_status = ENV_NOT_RUNNABLE;
+
+	curenv->env_tf.tf_regs.reg_eax = 0;
+
+	sched_yield();
 }
 
 
@@ -429,6 +492,12 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_env_set_pgfault_upcall:
 			//sys_env_set_pgfault_upcall(envid_t envid, void *func)
 			return sys_env_set_pgfault_upcall((envid_t)a1, (void *)a2);
+		case SYS_ipc_try_send:
+			//sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
+			return sys_ipc_try_send((envid_t)a1, (uint32_t)a2, (void *)a3, (unsigned)a4);
+		case SYS_ipc_recv:
+			//sys_ipc_recv(void *dstva)
+			return sys_ipc_recv((void *)a1);
 		default:
 			return -E_INVAL;
 	}

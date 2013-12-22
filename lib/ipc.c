@@ -18,7 +18,32 @@ uint32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
 	// LAB 4: Your code here.
-	panic("ipc_recv not implemented");
+	// panic("ipc_recv not implemented");
+	int error;
+	void* parm = pg;
+
+	//   If 'pg' is null, pass sys_ipc_recv a value that it will understand
+	//   as meaning "no page".  (Zero is not the right value.
+	if(pg!=NULL) parm=(void*)UTOP+1;
+	error = sys_ipc_recv(parm);
+	if(!error)
+	{
+		//If 'fromenv' is nonnull, then store the IPC sender's envid in *fromenv.
+		if(from_env_store!=0) (*from_env_store) = env->env_ipc_from;
+		
+		// If 'perm' is nonnull, then store the IPC sender's page permission in *perm
+		//	(this is nonzero iff a page was successfully transferred to 'pg').
+		if(perm_store!=0) (*perm_store) = env->env_ipc_perm;
+
+		return env->env_ipc_value;		
+	}
+	else
+	{
+		(*from_env_store) = 0;
+		(*perm_store) = 0;
+		
+		return error;	
+	}
 	return 0;
 }
 
@@ -34,6 +59,20 @@ void
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
 	// LAB 4: Your code here.
-	panic("ipc_send not implemented");
+	// panic("ipc_send not implemented");
+
+	//   If 'pg' is null, pass sys_ipc_recv a value that it will understand
+	//   as meaning "no page".  (Zero is not the right value.)
+	pg = (pg==NULL ? (void*)UTOP+1 : pg);
+
+	int error = sys_ipc_try_send(to_env, val, pg, perm);
+
+	while(error<0)
+	{
+		if(error != -E_IPC_NOT_RECV) panic("not E_IPC_NOT_RECV");
+		//   Use sys_yield() to be CPU-friendly.
+		sys_yield();
+		error = sys_ipc_try_send(to_env, val, pg, perm);	
+	}
 }
 
