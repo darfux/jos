@@ -8,6 +8,9 @@
 #include <kern/monitor.h>
 #include <kern/env.h>
 #include <kern/syscall.h>
+#include <kern/sched.h>
+#include <kern/kclock.h>
+#include <kern/picirq.h>
 
 static struct Taskstate ts;
 
@@ -108,54 +111,54 @@ idt_init(void)
 	extern struct Segdesc gdt[];
 	
 	// LAB 3: Your code here.
-	SETGATE(idt[T_DIVIDE], 1, GD_KT, _divide, 0);
-	SETGATE(idt[T_DEBUG], 1, GD_KT, _debug, 0);
+	SETGATE(idt[T_DIVIDE], 0, GD_KT, _divide, 0);
+	SETGATE(idt[T_DEBUG], 0, GD_KT, _debug, 0);
 	SETGATE(idt[T_NMI], 0, GD_KT, _nmi, 0);
-	SETGATE(idt[T_BRKPT], 1, GD_KT, _brkpt, 3);
-	SETGATE(idt[T_OFLOW], 1, GD_KT, _oflow, 0);
-	SETGATE(idt[T_BOUND], 1, GD_KT, _bound, 0);
-	SETGATE(idt[T_ILLOP], 1, GD_KT, _illop, 0);
-	SETGATE(idt[T_DEVICE], 1, GD_KT, _device, 0);
-	SETGATE(idt[T_DBLFLT], 1, GD_KT, _dblflt, 0);
-	SETGATE(idt[T_TSS], 1, GD_KT, _tss, 0);
-	SETGATE(idt[T_SEGNP], 1, GD_KT, _segnp, 0);
-	SETGATE(idt[T_STACK], 1, GD_KT, _stack, 0);
-	SETGATE(idt[T_GPFLT], 1, GD_KT, _gpflt, 0);
-	SETGATE(idt[T_PGFLT], 1, GD_KT, _pgflt, 0);
-	SETGATE(idt[T_FPERR], 1, GD_KT, _fperr, 0);
-	SETGATE(idt[T_ALIGN], 1, GD_KT, _align, 0);
-	SETGATE(idt[T_MCHK], 1, GD_KT, _mchk, 0);
-	SETGATE(idt[T_SIMDERR], 1, GD_KT, _simderr, 0);
-	SETGATE(idt[20], 1, GD_KT, _20, 3);
-	SETGATE(idt[21], 1, GD_KT, _21, 3);
-	SETGATE(idt[22], 1, GD_KT, _22, 3);
-	SETGATE(idt[23], 1, GD_KT, _23, 3);
-	SETGATE(idt[24], 1, GD_KT, _24, 3);
-	SETGATE(idt[25], 1, GD_KT, _25, 3);
-	SETGATE(idt[26], 1, GD_KT, _26, 3);
-	SETGATE(idt[27], 1, GD_KT, _27, 3);
-	SETGATE(idt[28], 1, GD_KT, _28, 3);
-	SETGATE(idt[29], 1, GD_KT, _29, 3);
-	SETGATE(idt[30], 1, GD_KT, _30, 3);
-	SETGATE(idt[31], 1, GD_KT, _31, 3);
-	SETGATE(idt[32], 1, GD_KT, _32, 3);
-	SETGATE(idt[33], 1, GD_KT, _33, 3);
-	SETGATE(idt[34], 1, GD_KT, _34, 3);
-	SETGATE(idt[35], 1, GD_KT, _35, 3);
-	SETGATE(idt[36], 1, GD_KT, _36, 3);
-	SETGATE(idt[37], 1, GD_KT, _37, 3);
-	SETGATE(idt[38], 1, GD_KT, _38, 3);
-	SETGATE(idt[39], 1, GD_KT, _39, 3);
-	SETGATE(idt[40], 1, GD_KT, _40, 3);
-	SETGATE(idt[41], 1, GD_KT, _41, 3);
-	SETGATE(idt[42], 1, GD_KT, _42, 3);
-	SETGATE(idt[43], 1, GD_KT, _43, 3);
-	SETGATE(idt[44], 1, GD_KT, _44, 3);
-	SETGATE(idt[45], 1, GD_KT, _45, 3);
-	SETGATE(idt[46], 1, GD_KT, _46, 3);
-	SETGATE(idt[47], 1, GD_KT, _47, 3);
-	SETGATE(idt[T_SYSCALL], 1, GD_KT, _syscall, 3);
-	SETGATE(idt[T_DEFAULT], 1, GD_KT, _default, 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, _brkpt, 3);
+	SETGATE(idt[T_OFLOW], 0, GD_KT, _oflow, 0);
+	SETGATE(idt[T_BOUND], 0, GD_KT, _bound, 0);
+	SETGATE(idt[T_ILLOP], 0, GD_KT, _illop, 0);
+	SETGATE(idt[T_DEVICE], 0, GD_KT, _device, 0);
+	SETGATE(idt[T_DBLFLT], 0, GD_KT, _dblflt, 0);
+	SETGATE(idt[T_TSS], 0, GD_KT, _tss, 0);
+	SETGATE(idt[T_SEGNP], 0, GD_KT, _segnp, 0);
+	SETGATE(idt[T_STACK], 0, GD_KT, _stack, 0);
+	SETGATE(idt[T_GPFLT], 0, GD_KT, _gpflt, 0);
+	SETGATE(idt[T_PGFLT], 0, GD_KT, _pgflt, 0);
+	SETGATE(idt[T_FPERR], 0, GD_KT, _fperr, 0);
+	SETGATE(idt[T_ALIGN], 0, GD_KT, _align, 0);
+	SETGATE(idt[T_MCHK], 0, GD_KT, _mchk, 0);
+	SETGATE(idt[T_SIMDERR], 0, GD_KT, _simderr, 0);
+	SETGATE(idt[20], 0, GD_KT, _20, 0);
+	SETGATE(idt[21], 0, GD_KT, _21, 0);
+	SETGATE(idt[22], 0, GD_KT, _22, 0);
+	SETGATE(idt[23], 0, GD_KT, _23, 0);
+	SETGATE(idt[24], 0, GD_KT, _24, 0);
+	SETGATE(idt[25], 0, GD_KT, _25, 0);
+	SETGATE(idt[26], 0, GD_KT, _26, 0);
+	SETGATE(idt[27], 0, GD_KT, _27, 0);
+	SETGATE(idt[28], 0, GD_KT, _28, 0);
+	SETGATE(idt[29], 0, GD_KT, _29, 0);
+	SETGATE(idt[30], 0, GD_KT, _30, 0);
+	SETGATE(idt[31], 0, GD_KT, _31, 0);
+	SETGATE(idt[32], 0, GD_KT, _32, 0);
+	SETGATE(idt[33], 0, GD_KT, _33, 0);
+	SETGATE(idt[34], 0, GD_KT, _34, 0);
+	SETGATE(idt[35], 0, GD_KT, _35, 0);
+	SETGATE(idt[36], 0, GD_KT, _36, 0);
+	SETGATE(idt[37], 0, GD_KT, _37, 0);
+	SETGATE(idt[38], 0, GD_KT, _38, 0);
+	SETGATE(idt[39], 0, GD_KT, _39, 0);
+	SETGATE(idt[40], 0, GD_KT, _40, 0);
+	SETGATE(idt[41], 0, GD_KT, _41, 0);
+	SETGATE(idt[42], 0, GD_KT, _42, 0);
+	SETGATE(idt[43], 0, GD_KT, _43, 0);
+	SETGATE(idt[44], 0, GD_KT, _44, 0);
+	SETGATE(idt[45], 0, GD_KT, _45, 0);
+	SETGATE(idt[46], 0, GD_KT, _46, 0);
+	SETGATE(idt[47], 0, GD_KT, _47, 0);
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, _syscall, 3);
+	SETGATE(idt[T_DEFAULT], 0, GD_KT, _default, 0);
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
 	ts.ts_esp0 = KSTACKTOP;
@@ -224,6 +227,12 @@ trap_dispatch(struct Trapframe *tf)
 			tf->tf_regs.reg_eax = syscall(pr.reg_eax, pr.reg_edx, pr.reg_ecx, pr.reg_ebx, pr.reg_edi, pr.reg_esi);
 			return;
 	}
+	// Handle clock and serial interrupts.
+	// LAB 4: Your code here.
+	if (tf->tf_trapno == IRQ_OFFSET + 0)
+	{
+		sched_yield();				
+	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -237,8 +246,6 @@ trap_dispatch(struct Trapframe *tf)
 void
 trap(struct Trapframe *tf)
 {
-	cprintf("Incoming TRAP frame at %p\n", tf);
-	// __asm __volatile("xchg %bx, %bx");
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
 		// Copy trap frame (which is currently on the stack)
@@ -253,12 +260,16 @@ trap(struct Trapframe *tf)
 	// Dispatch based on what type of trap occurred
 	trap_dispatch(tf);
 
-        // Return to the current environment, which should be runnable.
-        assert(curenv && curenv->env_status == ENV_RUNNABLE);
-        env_run(curenv);
+	// If we made it to this point, then no other environment was
+	// scheduled, so we should return to the current environment
+	// if doing so makes sense.
+	if (curenv && curenv->env_status == ENV_RUNNABLE)
+		env_run(curenv);
+	else
+		sched_yield();
 }
 
-
+#include <inc/string.h>
 void
 page_fault_handler(struct Trapframe *tf)
 {
@@ -270,7 +281,7 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 	
 	// LAB 3: Your code here.
-    if(!(tf->tf_cs&0x3)) panic("Page fault in kernel(0x%08x)\n", fault_va);
+	if(!(tf->tf_cs&0x3)) panic("Page fault in kernel(0x%08x)\n", fault_va);
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
 
@@ -301,6 +312,71 @@ page_fault_handler(struct Trapframe *tf)
 	
 	// LAB 4: Your code here.
 
+	//If there's no page fault upcall, the environment didn't allocate 
+	//a page for its exception stack,... then destroy the environment 
+	//that caused the fault.
+
+	int noFaultCall = (curenv->env_pgfault_upcall==NULL);
+	if(noFaultCall)
+	{
+		cprintf("[%08x] user fault va %08x ip %08x\n",
+			curenv->env_id, fault_va, tf->tf_eip);
+		print_trapframe(tf);
+		env_destroy(curenv);	
+	}
+
+	uint32_t* currentEsp;
+
+	// Set up apage fault stack frame on the user exception stack (below
+	// UXSTACKTOP)
+	user_mem_assert(curenv, (void *) UXSTACKTOP - 1, 1, PTE_U | PTE_W | PTE_P); 
+
+	if(tf->tf_esp <= UXSTACKTOP-1 && (tf->tf_esp >= UXSTACKTOP-PGSIZE)) 
+	{
+		//Already in page fault upcall
+		currentEsp = (uint32_t *) (tf->tf_esp);
+		currentEsp--;
+		*currentEsp = 0;
+	}
+	else
+	{
+		currentEsp = (uint32_t *) UXSTACKTOP;
+	}
+	
+	//check stack overflow
+	int tfsize = sizeof(struct UTrapframe);
+	uint32_t* espWill = currentEsp-tfsize/sizeof(uint32_t*);
+	user_mem_assert(curenv, (void*)espWill, tfsize, PTE_U | PTE_W);	
+	
+	//=w=
+	//below is a trick using inc/string.c's memcpy
+	//to 'push' a UTrapframe in the stack
+
+	//init a temp UTrapframe
+	struct UTrapframe tmp = 
+	{
+		.utf_fault_va	= fault_va, 
+		.utf_err		= tf->tf_err,
+		.utf_regs		= tf->tf_regs,
+		.utf_eip		= tf->tf_eip,
+		.utf_eflags		= tf->tf_eflags,
+		.utf_esp		= tf->tf_esp
+	}; 
+
+	//move the currentEsp to the position after 'push'
+	//a UTrapframe
+	currentEsp -= tfsize/sizeof(uint32_t*);
+
+	//use memcpy to 'push' the UTrapframe tmp into uxstack
+	memcpy(currentEsp, &tmp, sizeof(struct UTrapframe));
+
+	//set proper eip&esp
+	curenv->env_tf.tf_eip = (uintptr_t) curenv->env_pgfault_upcall;
+	curenv->env_tf.tf_esp = (uintptr_t) currentEsp;
+	
+	//run env
+	env_run(curenv);
+	
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);

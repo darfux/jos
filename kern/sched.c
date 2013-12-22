@@ -21,6 +21,30 @@ sched_yield(void)
 	// LAB 4: Your code here.
 
 	// Run the special idle environment when nothing else is runnable.
+	struct Env* env2run;
+
+	int index, curenIndex;
+	if(curenv==NULL)
+	{
+		index = 1;
+	}
+	else
+	{
+		curenIndex = ENVX(curenv->env_id);
+		index = curenIndex>=NENV-1 ? 1 : curenIndex+1;
+	}
+	env2run = &envs[index];
+
+	int i;
+	for(i=1; i<NENV; i++)
+	{
+		if (env2run->env_status == ENV_RUNNABLE) env_run(env2run);
+		curenIndex = ENVX(env2run->env_id);
+		index = curenIndex>=NENV-1 ? 1 : curenIndex+1;
+		env2run = &envs[index];
+	}
+    
+	// Run the special idle environment when nothing else is runnable.
 	if (envs[0].env_status == ENV_RUNNABLE)
 		env_run(&envs[0]);
 	else {
