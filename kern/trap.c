@@ -266,7 +266,7 @@ trap(struct Trapframe *tf)
 		sched_yield();
 }
 
-#include <string.h>
+#include <inc/string.h>
 void
 page_fault_handler(struct Trapframe *tf)
 {
@@ -345,7 +345,7 @@ page_fault_handler(struct Trapframe *tf)
 	uint32_t* espWill = currentEsp-tfsize/sizeof(uint32_t*);
 	user_mem_assert(curenv, (void*)espWill, tfsize, PTE_U | PTE_W);	
 	
-	//w\\
+	//=w=
 	//below is a trick using inc/string.c's memcpy
 	//to 'push' a UTrapframe in the stack
 

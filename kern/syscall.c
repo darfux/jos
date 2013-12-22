@@ -168,10 +168,10 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 	int error;
 
 	//check existance&permission
-	error = envid2env(envid, &e, 1);
+	error = envid2env(envid, &env, 1);
 
-	if (error < 0) return r;
-	e->env_pgfault_upcall = func;		
+	if (error < 0) return error;
+	env->env_pgfault_upcall = func;		
 	return 0;
 }
 
@@ -426,6 +426,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_page_unmap:
 			//sys_page_unmap(envid_t envid, void *va)
 			return sys_page_unmap((envid_t)a1, (void *)a2);
+		case SYS_env_set_pgfault_upcall:
+			//sys_env_set_pgfault_upcall(envid_t envid, void *func)
+			return sys_env_set_pgfault_upcall((envid_t)a1, (void *)a2);
 		default:
 			return -E_INVAL;
 	}
