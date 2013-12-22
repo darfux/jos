@@ -266,7 +266,7 @@ trap(struct Trapframe *tf)
 		sched_yield();
 }
 
-
+#include <string.h>
 void
 page_fault_handler(struct Trapframe *tf)
 {
@@ -278,7 +278,7 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 	
 	// LAB 3: Your code here.
-    if(!(tf->tf_cs&0x3)) panic("Page fault in kernel(0x%08x)\n", fault_va);
+	if(!(tf->tf_cs&0x3)) panic("Page fault in kernel(0x%08x)\n", fault_va);
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
 
@@ -309,6 +309,59 @@ page_fault_handler(struct Trapframe *tf)
 	
 	// LAB 4: Your code here.
 
+	//If there's no page fault upcall, the environment didn't allocate 
+	//a page for its exception stack,... then destroy the environment 
+	//that caused the fault.
+
+	int noFaultCall = (curenv->env_pgfault_upcall==NULL);
+	if(noFaultCall)
+	{
+		cprintf("[%08x] user fault va %08x ip %08x\n",
+			curenv->env_id, fault_va, tf->tf_eip);
+		print_trapframe(tf);
+		env_destroy(curenv);	
+	}
+
+	uint32_t* currentEsp;
+
+	// Set up apage fault stack frame on the user exception stack (below
+	// UXSTACKTOP)
+	user_mem_assert(curenv, (void *) UXSTACKTOP - 1, 1, PTE_U | PTE_W | PTE_P); 
+
+	if(tf->tf_esp <= UXSTACKTOP-1) 
+	{
+		//Already in page fault upcall
+		currentEsp = (uint32_t *) (tf->tf_esp);
+		currentEsp--;
+		*currentEsp = 0;
+	}
+	else
+	{
+		currentEsp = (uint32_t *) UXSTACKTOP;
+	}
+	
+	//check stack overflow
+	int tfsize = sizeof(struct UTrapframe);
+	uint32_t* espWill = currentEsp-tfsize/sizeof(uint32_t*);
+	user_mem_assert(curenv, (void*)espWill, tfsize, PTE_U | PTE_W);	
+	
+	struct UTrapframe tmp = 
+	{
+		.utf_fault_va	= fault_va, 
+		.utf_err		= tf->tf_err,
+		.utf_regs		= tf->tf_regs,
+		.utf_eip		= tf->tf_eip,
+		.utf_eflags		= tf->tf_eflags,
+		.utf_esp		= tf->tf_esp
+	}; 
+
+	currentEsp -= tfsize/sizeof(uint32_t*);
+	memcpy(currentEsp, &tmp, sizeof(struct UTrapframe));
+
+	curenv->env_tf.tf_eip = (uintptr_t) curenv->env_pgfault_upcall;
+	curenv->env_tf.tf_esp = (uintptr_t) currentEsp;
+	
+	env_run(curenv);
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
