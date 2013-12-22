@@ -134,7 +134,6 @@ env_setup_vm(struct Env *e)
 	
 	if(p->pp_ref!=0) panic("You do not give me a fresh page!\n");
 	p->pp_ref=1;
-	
 	// VPT and UVPT map the env's own page table, with
 	// different permissions.
 	e->env_pgdir[PDX(VPT)]  = e->env_cr3 | PTE_P | PTE_W;
@@ -197,18 +196,22 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
 	e->env_tf.tf_eflags |= FL_IF;
-	
+
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
 
 	// Also clear the IPC receiving flag.
 	e->env_ipc_recving = 0;
 
+
+	// If this is the file server (e == &envs[1]) give it I/O privileges.
+	// LAB 5: Your code here.
+
 	// commit the allocation
 	LIST_REMOVE(e, env_link);
 	*newenv_store = e;
 
-	cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+	// cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 	return 0;
 }
 
@@ -300,6 +303,7 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 
 	// LAB 3: Your code here.
 
+
 	// Add by hldyxh @ 2009-10-09
         struct Elf *elf = (struct Elf *)binary;
         uint8_t* va = NULL;
@@ -373,6 +377,7 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
+
         //      Add by hldyxh @ 2009-10-09
         segment_alloc(e,(uintptr_t*)(USTACKTOP - PGSIZE),PGSIZE);
         // Add end
@@ -409,7 +414,7 @@ env_free(struct Env *e)
 	physaddr_t pa;
 
 	// Note the environment's demise.
-	cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+	// cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 
 	// Flush all mapped pages in the user portion of the address space
 	static_assert(UTOP % PTSIZE == 0);
@@ -485,7 +490,9 @@ env_pop_tf(struct Trapframe *tf)
 // Note: if this is the first call to env_run, curenv is NULL.
 //  (This function does not return.)
 //
+
 void setPte(struct Env *, void*, int );
+
 void
 env_run(struct Env *e)
 {
@@ -503,6 +510,7 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 	
 	// LAB 3: Your code here.
+
 	if(curenv!=e)
 	{
 		curenv = e;
@@ -527,3 +535,4 @@ void setPte(struct Env *e, void* va, int value)
 	pt[PTX(va)] = value;
 	tlb_invalidate(e->env_pgdir, va);
 }
+

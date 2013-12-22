@@ -9,7 +9,9 @@
 #include <kern/pmap.h>
 #include <kern/kclock.h>
 #include <kern/env.h>
+
 #include <kern/monitor.h>
+
 
 // These variables are set by i386_detect_memory()
 static physaddr_t maxpa;	// Maximum physical address
@@ -117,6 +119,7 @@ boot_alloc(uint32_t n, uint32_t align)
 	//	Step 3: increase boot_freemem to record allocation
 	//	Step 4: return allocated chunk
 
+
 	boot_freemem = ROUNDUP(boot_freemem, align);
 
 	//set the return value to the boot_freemem after ROUNDUP
@@ -126,6 +129,7 @@ boot_alloc(uint32_t n, uint32_t align)
 	boot_freemem+=n;
 	if(PADDR(boot_freemem)>maxpa) panic("We're out of memory!\n");
 	return v;
+
 }
 
 //
@@ -155,6 +159,7 @@ boot_alloc(uint32_t n, uint32_t align)
 static pte_t*
 boot_pgdir_walk(pde_t *pgdir, uintptr_t la, int create)
 {
+
 	pte_t* pt;//page table pointer
 	pde_t* pde = &(pgdir[PDX(la)]);//the respond pde of the pt
 	bool isPresent = (*pde)&PTE_P;
@@ -178,6 +183,7 @@ boot_pgdir_walk(pde_t *pgdir, uintptr_t la, int create)
 		pt = (pte_t *)(KADDR(PTE_ADDR(*pde)));
 		return &pt[PTX(la)];
 	}
+
 	return 0;
 }
 
@@ -232,6 +238,7 @@ i386_vm_init(void)
 	// Remove this line when you're ready to test this function.
 	// panic("i386_vm_init: This function is not finished\n");
 
+
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
 	pgdir = boot_alloc(PGSIZE, PGSIZE);
@@ -263,6 +270,7 @@ i386_vm_init(void)
 	
 	boot_map_segment(pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, 
 		PADDR(bootstack), PTE_W);
+
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE. 
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -291,6 +299,7 @@ i386_vm_init(void)
 	pages = boot_alloc(npage*sizeof(struct Page), PGSIZE);
 	boot_map_segment(pgdir, UPAGES, npage*sizeof(struct Page),
 			 PADDR(pages), PTE_U);
+
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// Map this array read-only by the user at linear address UENVS

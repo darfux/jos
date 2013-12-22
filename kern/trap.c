@@ -52,6 +52,8 @@ static const char *trapname(int trapno)
 		return excnames[trapno];
 	if (trapno == T_SYSCALL)
 		return "System call";
+	if (trapno >= IRQ_OFFSET && trapno < IRQ_OFFSET + 16)
+		return "Hardware Interrupt";
 	return "(unknown trap)";
 }
 
@@ -163,7 +165,9 @@ idt_init(void)
 	// when we trap to the kernel.
 	ts.ts_esp0 = KSTACKTOP;
 	ts.ts_ss0 = GD_KD;
-	ts.ts_cr3 = 0;
+
+	// ts.ts_cr3 = 0;
+
 
 	// Initialize the TSS field of the gdt.
 	gdt[GD_TSS >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
@@ -233,6 +237,11 @@ trap_dispatch(struct Trapframe *tf)
 	{
 		sched_yield();				
 	}
+
+	// Handle keyboard interrupts.
+	// LAB 5: Your code here.
+
+
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -282,6 +291,7 @@ page_fault_handler(struct Trapframe *tf)
 	
 	// LAB 3: Your code here.
 	if(!(tf->tf_cs&0x3)) panic("Page fault in kernel(0x%08x)\n", fault_va);
+
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
 
@@ -311,6 +321,7 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 	
 	// LAB 4: Your code here.
+
 
 	//If there's no page fault upcall, the environment didn't allocate 
 	//a page for its exception stack,... then destroy the environment 
