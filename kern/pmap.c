@@ -775,6 +775,15 @@ static uintptr_t user_mem_check_addr;
 //
 // Hint: The TA solution uses pgdir_walk.
 //
+#define CHECK_HELP do\
+{\
+	pte_t* pte;\
+	if(!(pte = pgdir_walk(env->env_pgdir, (void *)va, 0))) return -E_FAULT;\
+	if(!(*pte & PTE_P)) return -E_FAULT;\
+	if(((*pte & PTE_U)==1) &&((perm & PTE_U)==0)) return -E_FAULT;\
+	if(((*pte&PTE_W)==0) &&((perm&PTE_W)==1))return -E_FAULT;\
+}while(0)
+
 int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
@@ -805,32 +814,26 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 	// }
 	// user_mem_check_addr = 0;
 	// return 0;
+	int error;
+	uintptr_t check_va;
 	user_mem_check_addr = (uintptr_t)va;
+	// cprintf("va %08x\n", va);
 	if((size_t)va>=ULIM) return -E_FAULT;
+	// cprintf("ULIM %08x\n", ULIM);
 	uint32_t start = ROUNDDOWN((size_t)va, PGSIZE);
+	// cprintf("start %08x\n", start);
 	uint32_t range = (size_t)va+len;
 	uint32_t roundRange = ROUNDUP(range, PGSIZE);
 	uint32_t end = roundRange==range?roundRange+1:roundRange;
-	pte_t* pte;
 
+	check_va = (uintptr_t)va;
+	CHECK_HELP;
 	uint32_t i;
 	for(i=start; i<end;)
 	{
 	    user_mem_check_addr = i;
-			
-	    if(!(pte = pgdir_walk(env->env_pgdir, (void *)i, 0)))
-	        return -E_FAULT;
-		
-	    if(!(*pte & PTE_P))
-	        return -E_FAULT;
-		
-	    if(((*pte & PTE_U)==1) &&
-	        ((perm & PTE_U)==0))
-	        return -E_FAULT;
-
-	    if(((*pte&PTE_W)==0) &&
-	       ((perm&PTE_W)==1))
-	        return -E_FAULT;
+		check_va = (uintptr_t)i;
+		CHECK_HELP;
 		
 		user_mem_check_addr = i+=PGSIZE;
 	}
