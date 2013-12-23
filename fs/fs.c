@@ -2,6 +2,13 @@
 
 #include "fs.h"
 
+//=w=
+#define RESERVED_BLOCK_NUM 2 //0,1
+#define BITMAP_START_BLOCK RESERVED_BLOCK_NUM
+#define DIV_ROUNDUP(dividend,divisor) ((dividend+divisor-1)/divisor)
+#define BITMAPNO(blkno) (BITMAP_START_BLOCK+DIV_ROUNDUP(blkno,BLKBITSIZE))
+//=m=
+
 struct Super *super;		// superblock
 uint32_t *bitmap;		// bitmap blocks mapped in memory
 
@@ -165,6 +172,10 @@ free_block(uint32_t blockno)
 	bitmap[blockno/32] |= 1<<(blockno%32);
 }
 
+//bitmap flush helper
+#define FUX_flush_bitmap_help(blockno) do{\
+	write_block(BITMAPNO(blockno));\
+}while(0)
 // Search the bitmap for a free block and allocate it.
 // 
 // Return block number allocated on success,
@@ -173,7 +184,21 @@ int
 alloc_block_num(void)
 {
 	// LAB 5: Your code here.
-	panic("alloc_block_num not implemented");
+	// panic("alloc_block_num not implemented");
+
+	int blockno;
+	int total = super->s_nblocks;
+	
+	for(blockno=0; blockno<total; blockno++)
+	{
+		if(block_is_free(blockno))
+		{
+			bitmap[blockno/32] &= ~(1 << (blockno%32));//just opposite block_is_free
+			FUX_flush_bitmap_help(blockno);	
+			return blockno;
+		}
+	}
+
 	return -E_NO_DISK;
 }
 
@@ -245,13 +270,11 @@ read_bitmap(void)
 	// panic("read_bitmap not implemented");
 	int total = super->s_nblocks;
 
-	int bitmapNum = total/BLKBITSIZE;
-	if(bitmapNum%BLKBITSIZE) bitmapNum++;
+	int bitmapLastNo = BITMAPNO(total);
 
 	// Read all the bitmap blocks into memory.
 	// Set the "bitmap" pointer to point at the beginning of the first
 	// bitmap block.
-	#define BITMAP_START_BLOCK 2
 
 	error = read_block(BITMAP_START_BLOCK, &blk);
 	if(error< 0) panic("bitmap load error");
@@ -259,9 +282,9 @@ read_bitmap(void)
 	// Set 'bitmap' to point to the first address in the bitmap.
 	bitmap = (uint32_t *)blk;
 
-	for(i=1; i<bitmapNum; i++)
+	for(i=BITMAP_START_BLOCK; i<=bitmapLastNo; i++)
 	{
-		error = read_block(BITMAP_START_BLOCK+i, &blk);
+		error = read_block(i, &blk);
 		if(error< 0) panic("bitmap load error");
 	}
 
@@ -275,7 +298,7 @@ read_bitmap(void)
 
 	// Make sure that the bitmap blocks are marked in-use.
 	// LAB 5: Your code here.
-	for(i=1; i<bitmapNum; i++) assert(!block_is_free(BITMAP_START_BLOCK+i));
+	for(i=BITMAP_START_BLOCK; i<=bitmapLastNo; i++) assert(!block_is_free(i));
 
 	cprintf("read_bitmap is good\n");
 }
