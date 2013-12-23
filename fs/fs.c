@@ -230,7 +230,7 @@ read_super(void)
 void
 read_bitmap(void)
 {
-	int r;
+	int error;
 	uint32_t i;
 	char *blk;
 
@@ -242,7 +242,31 @@ read_bitmap(void)
 	// Hint: Use read_block.
 
 	// LAB 5: Your code here.
-	panic("read_bitmap not implemented");
+	// panic("read_bitmap not implemented");
+	int total = super->s_nblocks;
+
+	int bitmapNum = total/BLKBITSIZE;
+	if(bitmapNum%BLKBITSIZE) bitmapNum++;
+
+	// Read all the bitmap blocks into memory.
+	// Set the "bitmap" pointer to point at the beginning of the first
+	// bitmap block.
+	#define BITMAP_START_BLOCK 2
+
+	error = read_block(BITMAP_START_BLOCK, &blk);
+	if(error< 0) panic("bitmap load error");
+
+	// Set 'bitmap' to point to the first address in the bitmap.
+	bitmap = (uint32_t *)blk;
+
+	for(i=1; i<bitmapNum; i++)
+	{
+		error = read_block(BITMAP_START_BLOCK+i, &blk);
+		if(error< 0) panic("bitmap load error");
+	}
+
+	// Check that all reserved blocks -- 0, 1, and the bitmap blocks themselves --
+	// are all marked as in-use
 
 	// Make sure the reserved and root blocks are marked in-use.
 	assert(!block_is_free(0));
@@ -251,6 +275,7 @@ read_bitmap(void)
 
 	// Make sure that the bitmap blocks are marked in-use.
 	// LAB 5: Your code here.
+	for(i=1; i<bitmapNum; i++) assert(!block_is_free(BITMAP_START_BLOCK+i));
 
 	cprintf("read_bitmap is good\n");
 }
