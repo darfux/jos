@@ -450,13 +450,19 @@ file_clear_block(struct File *f, uint32_t filebno)
 int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
-	int r;
+	int error;
 	uint32_t diskbno;
 
 	// Read in the block, leaving the pointer in *blk.
 	// Hint: Use file_map_block and read_block.
 	// LAB 5: Your code here.
-	panic("file_get_block not implemented");
+	// panic("file_get_block not implemented");
+	error = file_map_block(f, filebno, &diskbno, 1);
+	if(error< 0) return error;
+
+	error = read_block(diskbno, blk);
+	if(error< 0) return error;
+
 	return 0;
 }
 
@@ -625,8 +631,13 @@ file_open(const char *path, struct File **pf)
 {
 	// Hint: Use walk_path.
 	// LAB 5: Your code here.
-	panic("file_open not implemented");
-	return 0;
+	//walk_path(const char *path, struct File **pdir, struct File **pf, char *lastelem)
+	
+
+	char lastelem[MAXNAMELEN];//not char *lastelem as walk_path will use mem space of it!
+	struct File **pdir = NULL;
+	return walk_path(path, pdir, pf, lastelem);
+	//panic("file_open not implemented");
 }
 
 // Remove any blocks currently used by file 'f',
@@ -641,12 +652,38 @@ file_open(const char *path, struct File **pf)
 static void
 file_truncate_blocks(struct File *f, off_t newsize)
 {
-	int r;
-	uint32_t bno, old_nblocks, new_nblocks;
+	int error;
+	uint32_t old_nblocks, new_nblocks;
 
 	// Hint: Use file_clear_block and/or free_block.
 	// LAB 5: Your code here.
-	panic("file_truncate_blocks not implemented");
+	// panic("file_truncate_blocks not implemented");
+	int oldsize = f->f_size;
+
+	// but not necessary for a file of size 'newsize'.
+	if(oldsize) return;
+	
+	// For both the old and new sizes, figure out the number of blocks required,
+	// and then clear the blocks from new_nblocks to old_nblocks.
+	new_nblocks = DIV_ROUNDUP(newsize, BLKSIZE);
+	old_nblocks = DIV_ROUNDUP(oldsize, BLKSIZE);
+	
+	int filebno;
+	for(filebno=new_nblocks; filebno<old_nblocks; filebno++)
+	{
+		error = file_clear_block(f, filebno);
+		if(error< 0) panic("free blocks fail");
+	}
+
+	// If the new_nblocks is no more than NDIRECT, and the indirect block has
+	// been allocated (f->f_indirect != 0), then free the indirect block too.
+	// (Remember to clear the f->f_indirect pointer so you'll know
+	// whether it's valid!)
+	if(new_nblocks<=NDIRECT && old_nblocks>NDIRECT)
+	{
+		free_block(f->f_indirect);				
+		f->f_indirect = 0;
+	}
 }
 
 int
@@ -670,7 +707,20 @@ void
 file_flush(struct File *f)
 {
 	// LAB 5: Your code here.
-	panic("file_flush not implemented");
+	// panic("file_flush not implemented");
+	int error;
+	int filebno;
+	uint32_t diskbno;
+
+	int filebnum = DIV_ROUNDUP(f->f_size, BLKSIZE);
+	
+	for(filebno=0; filebno<filebnum; filebno++)
+	{
+		error = file_map_block(f, filebno, &diskbno, 0);
+		if(error< 0) panic("file_map_block fail");
+
+		if(block_is_dirty(diskbno)) write_block(diskbno);			
+	}
 }
 
 // Sync the entire file system.  A big hammer.
