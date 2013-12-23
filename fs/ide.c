@@ -20,7 +20,7 @@ ide_wait_ready(bool check_error)
 	int r;
 
 	while (((r = inb(0x1F7)) & (IDE_BSY|IDE_DRDY)) != IDE_DRDY)
-		/* do nothing */;
+		/* do nothing */cprintf("ide wait\n");
 
 	if (check_error && (r & (IDE_DF|IDE_ERR)) != 0)
 		return -1;

@@ -75,7 +75,17 @@ read_block(uint32_t blockno, char **blk)
 		panic("reading free block %08x\n", blockno);
 
 	// LAB 5: Your code here.
-	panic("read_block not implemented");
+	addr = diskaddr(blockno);
+	int error = map_block(blockno);
+	if(error<0) return error;
+
+	int secno = blockno*BLKSECTS;
+	error = ide_read(secno, addr, (size_t)BLKSECTS);
+	if(error) return error;
+
+	if(blk) *blk = addr;
+	// panic("read_block not implemented");
+
 	return 0;
 }
 
@@ -87,13 +97,34 @@ void
 write_block(uint32_t blockno)
 {
 	char *addr;
-
 	if (!block_is_mapped(blockno))
 		panic("write unmapped block %08x", blockno);
 	
 	// Write the disk block and clear PTE_D.
 	// LAB 5: Your code here.
-	panic("write_block not implemented");
+
+	// We will use the VM hardware to keep track of whether a 
+	// disk block has been modified since it was last read from 
+	// or written to disk. To see whether a block needs writing, 
+	// we can just look to see if the PTE_D "dirty" bit is set 
+	// in the vpt entry.
+	addr = diskaddr(blockno);
+	if(!va_is_dirty(addr)) return;
+
+	
+	int error;
+	int secno = blockno*BLKSECTS;
+	error = ide_write(secno, addr, BLKSECTS);
+	if(error<0) panic("write block error on writing");
+
+	int env_id = sys_getenvid();
+	error = sys_page_map(env_id, addr, 
+		env_id, addr, ((PTE_U|PTE_P|PTE_W) & ~PTE_D));
+	if(error<0) panic("write block error on clearing PTE_D");
+
+
+
+	// panic("write_block not implemented");
 }
 
 // Make sure this block is unmapped.

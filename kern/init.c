@@ -57,7 +57,7 @@ i386_init(void)
 #else
 	// Touch all you want.
 	// ENV_CREATE(user_writemotd);
-	// ENV_CREATE(user_testfsipc);
+	ENV_CREATE(user_testfsipc);
 	// ENV_CREATE(user_icode);
 #endif
 
