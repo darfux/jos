@@ -206,7 +206,8 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// If this is the file server (e == &envs[1]) give it I/O privileges.
 	// LAB 5: Your code here.
-
+	if(e == &envs[1]) e->env_tf.tf_eflags |= FL_IOPL_MASK;// I/O Privilege Level bitmask
+	
 	// commit the allocation
 	LIST_REMOVE(e, env_link);
 	*newenv_store = e;
@@ -414,7 +415,7 @@ env_free(struct Env *e)
 	physaddr_t pa;
 
 	// Note the environment's demise.
-	// cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+	// cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->engit v_id);
 
 	// Flush all mapped pages in the user portion of the address space
 	static_assert(UTOP % PTSIZE == 0);
