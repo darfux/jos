@@ -8,7 +8,7 @@
 #include "fs.h"
 
 
-#define debug 1
+#define debug 0
 
 struct OpenFile {
 	uint32_t o_fileid;	// file id
@@ -251,15 +251,13 @@ serve_close(envid_t envid, struct Fsreq_close *rq)
 	
 	// LAB 5: Your code here.
 	// panic("serve_close not implemented");
-
 	error = openfile_lookup(envid, rq->req_fileid, &o);
 	if(error< 0) goto out;
 
 	file_close(o->o_file);
+	error = 0;
 
-	return;
-
-	out:
+out:
 	ipc_send(envid, error, 0, 0);
 }
 
