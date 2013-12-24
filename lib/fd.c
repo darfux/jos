@@ -51,8 +51,21 @@ int
 fd_alloc(struct Fd **fd_store)
 {
 	// LAB 5: Your code here.
+	// panic("fd_alloc not implemented");
 
-	panic("fd_alloc not implemented");
+	int i;
+	for(i=0; i<MAXFD; i++)
+	{
+		struct Fd *fd;
+		fd = INDEX2FD(i);
+		bool notMapped = !va_is_mapped2((void *)fd)
+		if (notMapped)
+		{
+			(*fd_store) = fd;
+			return 0;		
+		}
+	}
+	(*fd_store) = 0;
 	return -E_MAX_OPEN;
 }
 
@@ -66,9 +79,17 @@ int
 fd_lookup(int fdnum, struct Fd **fd_store)
 {
 	// LAB 5: Your code here.
+	// panic("fd_lookup not implemented");
 
-	panic("fd_lookup not implemented");
-	return -E_INVAL;
+	struct Fd *fd;
+	fd = INDEX2FD(fdnum);	
+	
+	bool outOfRange = (fdnum>MAXFD || fdnum<0);
+	bool notMapped = va_is_mapped2((void *)fd);
+	if(outOfRange||notMapped) return -E_INVAL;
+
+	(*fd_store) = fd;
+	return 0;	
 }
 
 // Frees file descriptor 'fd' by closing the corresponding file
