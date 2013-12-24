@@ -377,14 +377,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	
 	if(!env->env_ipc_recving) return -E_IPC_NOT_RECV;
 	
-	if(env->env_ipc_dstva!=0 && srcva!= 0)
+	if(env->env_ipc_dstva!=0 && (uint32_t)srcva < UTOP)
 	{
-		
-		//	-E_INVAL if srcva < UTOP but srcva is not mapped in the caller's
-		//		address space.
-		int overTop = (uintptr_t)srcva >= UTOP;
-		if(overTop) return -E_INVAL;
-
 		//	-E_INVAL if srcva < UTOP but srcva is not page-aligned.
 		int notAligned = (uintptr_t)srcva%PGSIZE;
 		if(notAligned) return -E_INVAL;
@@ -437,7 +431,7 @@ sys_ipc_recv(void *dstva)
 	// LAB 4: Your code here.
 	// panic("sys_ipc_recv not implemented");
 	// return 0;
-	int overTop = ((uintptr_t)dstva >= UTOP);
+	int overTop = ((uintptr_t)dstva > UTOP);
 	int notAligned = (uintptr_t)dstva%PGSIZE;
 	if(overTop||notAligned) return -E_INVAL;
 	
