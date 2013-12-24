@@ -661,7 +661,7 @@ file_truncate_blocks(struct File *f, off_t newsize)
 	int oldsize = f->f_size;
 
 	// but not necessary for a file of size 'newsize'.
-	if(oldsize) return;
+	if(newsize>oldsize) return;
 	
 	// For both the old and new sizes, figure out the number of blocks required,
 	// and then clear the blocks from new_nblocks to old_nblocks.
