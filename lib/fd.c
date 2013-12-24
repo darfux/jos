@@ -32,6 +32,13 @@ fd2num(struct Fd *fd)
 	return ((uintptr_t) fd - FDTABLE) / PGSIZE;
 }
 
+bool
+va_mapped(void* va)
+{
+	//short-circuit evaluation trick
+	return (vpd[PDX(va)]&PTE_P) && 
+					(vpt[VPN(va)]&PTE_P);
+}
 // Finds the smallest i from 0 to MAXFD-1 that doesn't have
 // its fd page mapped.
 // Sets *fd_store to the corresponding fd page virtual address.
@@ -58,8 +65,8 @@ fd_alloc(struct Fd **fd_store)
 	{
 		struct Fd *fd;
 		fd = INDEX2FD(i);
-		bool notMapped = !va_is_mapped2((void *)fd)
-		if (notMapped)
+		bool notMapped = !va_mapped((void*)fd);
+		if(notMapped)
 		{
 			(*fd_store) = fd;
 			return 0;		
@@ -84,8 +91,8 @@ fd_lookup(int fdnum, struct Fd **fd_store)
 	struct Fd *fd;
 	fd = INDEX2FD(fdnum);	
 	
-	bool outOfRange = (fdnum>MAXFD || fdnum<0);
-	bool notMapped = va_is_mapped2((void *)fd);
+	bool outOfRange = (fdnum>=MAXFD || fdnum<0);
+	bool notMapped = !va_mapped((void*)fd);
 	if(outOfRange||notMapped) return -E_INVAL;
 
 	(*fd_store) = fd;
