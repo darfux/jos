@@ -8,7 +8,7 @@ echo "============================="
 echo "Enter what you want to find:"
 read content
 if [ -n "$content" ]; then
-	find ..  -regex '.*\.\(c\|asm\|S\|h\|sym\)' | xargs grep -n "$content"
+	find ..  -regex '.*\.\(c\|S\|h\|sym\)' | xargs grep -n "$content"
 else
 	break;
 fi
