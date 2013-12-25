@@ -8,6 +8,7 @@
 #include <kern/console.h>
 #include <kern/pmap.h>
 #include <kern/kclock.h>
+#include <kern/kide.h>//for lab5 ex1 challenge
 #include <kern/env.h>
 #include <kern/trap.h>
 #include <kern/sched.h>
@@ -43,6 +44,9 @@ i386_init(void)
 	// Lab 4 multitasking initialization functions
 	pic_init();
 	kclock_init();
+
+	// Lab 5 ide interrupt
+	kide_init();
 
 	// Should always have an idle process as first one.
 	ENV_CREATE(user_idle);
