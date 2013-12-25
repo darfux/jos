@@ -18,9 +18,12 @@ static int
 ide_wait_ready(bool check_error)
 {
 	int r;
-
-	while (((r = inb(0x1F7)) & (IDE_BSY|IDE_DRDY)) != IDE_DRDY)
-		/* do nothing */;
+	// cprintf("Waiting ready\n");
+	if( ((r = inb(0x1F7)) & (IDE_BSY|IDE_DRDY)) != IDE_DRDY ) panic("not ready");
+	// while (((r = inb(0x1F7)) & (IDE_BSY|IDE_DRDY)) != IDE_DRDY)
+	// 	/* do nothing */;
+	// panic("ready");
+	// cprintf("Ready\n");
 
 	if (check_error && (r & (IDE_DF|IDE_ERR)) != 0)
 		return -1;
@@ -30,7 +33,7 @@ ide_wait_ready(bool check_error)
 bool
 ide_probe_disk1(void)
 {
-	int r, x;
+	int r, x;;
 
 	// wait for Device 0 to be ready
 	ide_wait_ready(0);
@@ -39,14 +42,16 @@ ide_probe_disk1(void)
 	outb(0x1F6, 0xE0 | (1<<4));
 
 	// check for Device 1 to be ready for a while
-	for (x = 0; x < 1000 && (r = inb(0x1F7)) == 0; x++)
-		/* do nothing */;
+	if( (r = inb(0x1F7))== 0 ) panic("not ready");
+	// for (x = 0; x < 1000 && (r = inb(0x1F7)) == 0; x++)
+		// /* do nothing */;
 
 	// switch back to Device 0
 	outb(0x1F6, 0xE0 | (0<<4));
 
-	cprintf("Device 1 presence: %d\n", (x < 1000));
-	return (x < 1000);
+	// cprintf("Device 1 presence: %d\n", (x < 1000));
+	// return (x < 1000);
+	return 1;
 }
 
 void
