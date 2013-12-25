@@ -54,10 +54,10 @@ open(const char *path, int mode)
 				}while(0)
 
 	error = fsipc_open(path, mode, fd);
-	if (error< 0) FCRR;
+	if(error< 0) FCRR;
 
 	error = fmap(fd, 0, fd->fd_file.file.f_size);
-	if (error<0) FCRR;
+	if(error<0) FCRR;
 	
 	return fd2num(fd);
 }

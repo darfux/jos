@@ -16,7 +16,8 @@ static int init_stack(envid_t child, const char **argv, uintptr_t *init_esp);
 int
 spawn(const char *prog, const char **argv)
 {
-	unsigned char elf_buf[512];
+	#define ELF_BUF_SIZE 512
+	unsigned char elf_buf[ELF_BUF_SIZE];
 	struct Trapframe child_tf;
 	envid_t child;
 
@@ -83,8 +84,153 @@ spawn(const char *prog, const char **argv)
 
 	// LAB 5: Your code here.
 	
-	(void) child;
-	panic("spawn unimplemented!");
+	// (void) child;
+	// panic("spawn unimplemented!");
+
+	int fd;
+	int r;
+
+	fd = open(prog, O_RDONLY);
+	if(fd<0) return fd;
+
+	char *elf_tmp;
+	r = read_map(fd, 0, (void **)&elf_tmp);
+	if(r<0)
+	{
+		close(fd);
+		return r;
+	}
+
+	memcpy(elf_buf, elf_tmp, ELF_BUF_SIZE);//adapter for code below
+	//===============
+	//The code below is directly copied from other's
+	//as I have little time to learn about elf loading
+	//which should have been done in lab3 but in fact not 
+	//as the TA did it for us then.
+	//=w=I may be back after this hellish term~
+
+
+	struct Elf * header;
+	uintptr_t init_esp;
+	struct Proghdr *ph, *eph;
+	void *blk;
+	int i, how_many, perm = 0, read, no_bytes;
+	uint32_t p_va;
+	header = (struct Elf *)elf_buf;
+	if (header->e_magic != ELF_MAGIC){		
+		close(fd);
+		return -E_NOT_EXEC;
+	}	  
+	if ((child = sys_exofork()) < 0 ){
+		close(fd);
+		return child;
+	}
+
+	//we are in parent - ren
+	
+	child_tf = envs[ENVX(child)].env_tf;
+	child_tf.tf_eip = header->e_entry;
+	
+	if (( r = init_stack(child, argv, &init_esp)) < 0)
+		goto error;
+	
+	child_tf.tf_esp = init_esp;
+
+	if ((r = sys_env_set_trapframe(child, &child_tf)) < 0)
+		goto error;
+
+
+	//"load" executable in child's address space - ren
+
+	ph = (struct Proghdr *) (elf_buf + header->e_phoff);
+	eph = ph + header->e_phnum;
+
+	for (; ph < eph; ph++){
+		read=0;
+		no_bytes=0;
+		if (ph->p_type == ELF_PROG_LOAD){
+	//we treat writable and readable segments in similar way (not like instructions tell) - ren
+			if ( ph->p_flags & ELF_PROG_FLAG_WRITE){			//segment is writable - ren	
+				how_many = ph->p_memsz/PGSIZE;
+				if (ph->p_memsz % PGSIZE)
+					how_many++;
+				perm = 	PTE_U | PTE_P | PTE_W;
+			}else{
+				how_many = ph->p_filesz/PGSIZE;
+				if (ph->p_filesz % PGSIZE)
+					how_many++;
+				perm = PTE_U | PTE_P;
+			}
+			
+			p_va = ph->p_va;
+
+			if ((r = seek(fd, ph->p_offset)) < 0)
+				goto error;
+
+			if(ph->p_va % PGSIZE){
+				if ((r = sys_page_alloc(sys_getenvid(), UTEMP, PTE_U | PTE_P | PTE_W)) < 0)
+					goto error;
+
+				if (ph->p_filesz <= (PGSIZE - (ph->p_va % PGSIZE)))
+					read = ph->p_filesz;
+				else
+					read = (PGSIZE - (ph->p_va % PGSIZE));				
+
+				if ((r = readn(fd, (void *)(UTEMP + (ph->p_va % PGSIZE)), read )) < 0)
+					goto error;
+				
+				if ((r = sys_page_map(sys_getenvid(), (void *)UTEMP,
+									  child, (void *)ph->p_va - (ph->p_va % PGSIZE), perm)) < 0 )
+					goto error;
+
+				p_va = ROUNDUP(ph->p_va, PGSIZE);
+			
+				if ( ph->p_flags & ELF_PROG_FLAG_WRITE){								
+						how_many = (ph->p_memsz - (PGSIZE - (ph->p_va % PGSIZE)))/PGSIZE;
+						if ((ph->p_memsz - (PGSIZE - (ph->p_va % PGSIZE))) % PGSIZE)
+							how_many++;	
+				}else{
+					how_many = (ph->p_filesz - (PGSIZE - (ph->p_va % PGSIZE)))/PGSIZE;
+					if ((ph->p_filesz - (PGSIZE - (ph->p_va % PGSIZE))) % PGSIZE)
+						how_many++;
+				}
+			}			
+
+			for(i=0; i < how_many; i++){
+				if ((r = sys_page_alloc(sys_getenvid(), UTEMP, PTE_U | PTE_P | PTE_W)) < 0)
+					goto error;	
+				
+				if (read < ph->p_filesz){	
+					if( (ph->p_filesz - read) > PGSIZE)
+						no_bytes = PGSIZE;
+					else
+						no_bytes = ph->p_filesz - read;
+					if ((r = readn(fd, (void *)UTEMP, no_bytes)) < 0)
+						goto error;								//java exceptions are great - ren
+					read+=no_bytes;				
+				}	
+
+				if ((r = sys_page_map(sys_getenvid(), (void *)UTEMP,
+									  child, (void *)(p_va+i*PGSIZE), perm)) < 0 )
+					goto error;			
+			}			
+		}
+	}
+
+	sys_page_unmap(sys_getenvid(), UTEMP);
+
+	if ((r = sys_env_set_status(child, ENV_RUNNABLE)) < 0)
+		goto error;
+
+	close(fd);
+	return 0;
+
+error:
+	close(fd);
+	sys_env_destroy(child);						
+	return r;	
+
+//======================================================
 }
 
 // Spawn, taking command-line arguments array directly on the stack.
@@ -161,7 +307,55 @@ init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 	//	  (Again, use an address valid in the child's environment.)
 	//
 	// LAB 5: Your code here.
-	*init_esp = USTACKTOP;	// Change this!
+	// *init_esp = USTACKTOP;	// Change this!
+
+
+
+
+
+
+	//	* Initialize 'argv_store[i]' to point to argument string i,
+	//	  for all 0 <= i < argc.
+	int offset = 0;
+	void* argvPos;
+	for(i=0; i<argc; i++)
+	{
+		argvPos = string_store+offset;
+		argv_store[i] = UTEMP2USTACK(argvPos);
+		memcpy(argvPos, argv[i], strlen(argv[i])+1);
+		offset += strlen(argv[i])+1;
+	}
+
+
+	//	* Set 'argv_store[argc]' to 0 to null-terminate the args array.
+	#define NULL_TERMINATE 0
+	argv_store[argc] = NULL_TERMINATE;
+
+
+
+	//	* Push two more words onto the child's stack below 'args',
+	//	  containing the argc and argv parameters to be passed
+	//	  to the child's umain() function.
+	//	  argv should be below argc on the stack.
+	//	  (Again, argv should use an address valid in the child's
+	//	  environment.)
+	uintptr_t* forChildArgv = argv_store - 1;
+	uintptr_t* forChildArgc = argv_store - 2;
+	(*forChildArgv) = UTEMP2USTACK(argv_store);	
+	*(forChildArgc) = argc;
+
+
+	//	* Set *init_esp to the initial stack pointer for the child,
+	//	  (Again, use an address valid in the child's environment.)
+
+	//=w=
+	//Note:mention the memlayout difference between stack and array
+	//that a stack is from high to low
+	//while an array is form low to high.
+	//As we have allocated space for the array
+	//we just need to put the head of array to a proper
+	//position near the stack bottom.
+	(*init_esp) = UTEMP2USTACK(forChildArgc);
 
 	// After completing the stack, map it into the child's address space
 	// and unmap it from ours!
