@@ -230,6 +230,8 @@ trap_dispatch(struct Trapframe *tf)
 			// syscall(pr.reg_eax, pr.reg_edx, pr.reg_ecx, pr.reg_ebx, pr.reg_edi, pr.reg_esi);
 			tf->tf_regs.reg_eax = syscall(pr.reg_eax, pr.reg_edx, pr.reg_ecx, pr.reg_ebx, pr.reg_edi, pr.reg_esi);
 			return;
+		case T_IDE:
+			ide_handler(tf);
 	}
 	// Handle clock and serial interrupts.
 	// LAB 4: Your code here.
@@ -395,3 +397,8 @@ page_fault_handler(struct Trapframe *tf)
 	env_destroy(curenv);
 }
 
+void
+ide_handler(struct Trapframe* tf)
+{
+	panic("ide_handler not implement!");
+}

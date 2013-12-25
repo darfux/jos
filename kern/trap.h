@@ -18,4 +18,7 @@ void print_trapframe(struct Trapframe *tf);
 void page_fault_handler(struct Trapframe *);
 void backtrace(struct Trapframe *);
 
+//for lab5 ex1 challenge
+void ide_handler(struct Trapframe *tf);
+
 #endif /* JOS_KERN_TRAP_H */

@@ -459,6 +459,12 @@ sys_ipc_recv(void *dstva)
 	sched_yield();
 }
 
+static int 
+sys_env_set_ide_upcall()
+{
+	panic("sys_env_set_ide_upcall not implemented");
+}
+
 
 // Dispatches to the correct kernel function, passing the arguments.
 uint32_t
@@ -509,7 +515,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_ipc_recv((void *)a1);
 		case SYS_env_set_trapframe:
 			//sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
-			return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
+			return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);		
+		case SYS_env_set_ide_upcall:
+			return sys_env_set_ide_upcall();
 		default:
 			return -E_INVAL;
 	}
