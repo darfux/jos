@@ -60,8 +60,8 @@ i386_init(void)
 	ENV_CREATE2(TEST, TESTSIZE);
 #else
 	// Touch all you want.
-	ENV_CREATE(user_writemotd);
-	// ENV_CREATE(user_testfsipc);
+	// ENV_CREATE(user_over4mb);
+	ENV_CREATE(user_testfsipc);
 	// ENV_CREATE(user_icode);
 #endif
 

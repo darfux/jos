@@ -4,9 +4,10 @@
 
 //=w=
 #define RESERVED_BLOCK_NUM 2 //0,1
+
 #define BITMAP_START_BLOCK RESERVED_BLOCK_NUM
-#define DIV_ROUNDUP(dividend,divisor) ((dividend+divisor-1)/divisor)
-#define BITMAPNO(blkno) (BITMAP_START_BLOCK+DIV_ROUNDUP(blkno,BLKBITSIZE))
+#define DIV_ROUNDUP(dividend,divisor) (((dividend)+(divisor)-1)/(divisor))
+#define BITMAPNO(blkno) (BITMAP_START_BLOCK+DIV_ROUNDUP((blkno),BLKBITSIZE))
 //=m=
 
 struct Super *super;		// superblock
@@ -270,7 +271,6 @@ read_bitmap(void)
 	int total = super->s_nblocks;
 
 	int bitmapLastNo = BITMAPNO(total);
-
 	// Read all the bitmap blocks into memory.
 	// Set the "bitmap" pointer to point at the beginning of the first
 	// bitmap block.
@@ -347,7 +347,7 @@ fs_init(void)
 		ide_set_disk(0);
 	
 	read_super();
-	// check_write_block();
+	check_write_block();
 	read_bitmap();
 }
 
@@ -367,32 +367,71 @@ fs_init(void)
 //	-E_INVAL if filebno is out of range (it's >= NINDIRECT).
 //
 // Analogy: This is like pgdir_walk for files.  
+
+//=w=
+//*lab5 ex6 challenge*
+//modified for lab5 ex6 4MB challenge
+//make the indirect blocks to be a link list
+//so that we can expand the filebno space
 int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
 	int r;
 	uint32_t *ptr;
 	char *blk;
+	
+	#define INDRECTMOUNT (BLKSIZE/4-NDIRECT) //amount of block pointer that one indirect block entry can catch
+	#define FILE_IND_BLKOFFSET(fileno) ((fileno-NDIRECT)%INDRECTMOUNT+NDIRECT) //calcu the offset filebno in it owner
 
-	if (filebno < NDIRECT)
+	int totalBlockNum = super->s_nblocks;
+	int maxIndirect = DIV_ROUNDUP((totalBlockNum-NDIRECT), (INDRECTMOUNT+1));
+
+	if(filebno < NDIRECT)
+	{
 		ptr = &f->f_direct[filebno];
-	else if (filebno < NINDIRECT) {
-		if (f->f_indirect == 0) {
-			if (alloc == 0)
-				return -E_NOT_FOUND;
-			if ((r = alloc_block()) < 0)
+	}
+	else if(filebno < (NINDIRECT-NDIRECT)*maxIndirect+NDIRECT)
+	{
+		int fileIndNo = DIV_ROUNDUP(filebno-NDIRECT+1, INDRECTMOUNT);
+		uint32_t* indirect = &(f->f_indirect);
+
+		//loop to find the owner of filebno
+		for(; fileIndNo>0; fileIndNo--)
+		{
+			if ((*indirect) == 0)
+			{
+				if (alloc == 0) return -E_NOT_FOUND;
+				if ((r = alloc_block()) < 0) return r;
+				(*indirect) = r;
+				if( indirect != &(f->f_indirect))
+				{
+					//if it's indirect block, 
+					//refresh the next indirect block entry
+					write_block(r);
+				}
+			}
+			else
+			{
+				alloc = 0;	// we did not allocate a block
+			}
+			if ((r = read_block((*indirect), &blk)) < 0)
+			{
 				return r;
-			f->f_indirect = r;
-		} else
-			alloc = 0;	// we did not allocate a block
-		if ((r = read_block(f->f_indirect, &blk)) < 0)
-			return r;
-		assert(blk != 0);
-		if (alloc)		// must clear any block we allocated
-			memset(blk, 0, BLKSIZE);
-		ptr = (uint32_t*)blk + filebno;
-	} else
+			}
+			assert(blk != 0);
+			if (alloc)		// must clear any block we allocated
+			{
+				memset(blk, 0, BLKSIZE);
+			}
+			//set the pointer to the next indirect block
+			indirect = (uint32_t*)blk;
+		}
+		ptr = (uint32_t*)blk + FILE_IND_BLKOFFSET(filebno);
+	}
+	else
+	{
 		return -E_INVAL;
+	}
 
 	*ppdiskbno = ptr;
 	return 0;
@@ -658,6 +697,7 @@ file_truncate_blocks(struct File *f, off_t newsize)
 	// LAB 5: Your code here.
 	// panic("file_truncate_blocks not implemented");
 	int oldsize = f->f_size;
+
 
 	// but not necessary for a file of size 'newsize'.
 	if(newsize>oldsize) return;
