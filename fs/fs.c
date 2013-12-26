@@ -382,7 +382,6 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 	
 	#define INDRECTMOUNT (BLKSIZE/4-NDIRECT) //amount of block pointer that one indirect block entry can catch
 	#define FILE_IND_BLKOFFSET(fileno) ((fileno-NDIRECT)%INDRECTMOUNT+NDIRECT) //calcu the offset filebno in it owner
-
 	int totalBlockNum = super->s_nblocks;
 	int maxIndirect = DIV_ROUNDUP((totalBlockNum-NDIRECT), (INDRECTMOUNT+1));
 
