@@ -23,7 +23,6 @@ ide_wait_ready(bool check_error)
 	// 	/* do nothing */;
 
 	//for lab5 ex1 challenge
-	outb(0x3F6, (0<<1));
 	r = inb(0x3F6);
 	if((r&(IDE_BSY|IDE_DRDY)) != IDE_DRDY) 
 	{
@@ -53,7 +52,6 @@ ide_probe_disk1(void)
 	// 	/* do nothing */;
 
 	//for lab5 ex1 challenge
-	outb(0x3F6, (0<<1));
 	r = inb(0x3F6);
 	if((r&(IDE_BSY|IDE_DRDY)) != IDE_DRDY) 
 	{
@@ -87,7 +85,6 @@ ide_read(uint32_t secno, void *dst, size_t nsecs)
 	ide_wait_ready(0);
 
 	outb(0x1F6, 0xE0 | ((diskno&1)<<4) | ((secno>>24)&0x0F));
-	outb(0x3F6, (0<<1));
 	outb(0x1F2, nsecs);
 	outb(0x1F3, secno & 0xFF);
 	outb(0x1F4, (secno >> 8) & 0xFF);
@@ -112,7 +109,6 @@ ide_write(uint32_t secno, const void *src, size_t nsecs)
 	ide_wait_ready(0);
 
 	outb(0x1F6, 0xE0 | ((diskno&1)<<4) | ((secno>>24)&0x0F));
-	outb(0x3F6, (0<<1));
 	outb(0x1F2, nsecs);
 	outb(0x1F3, secno & 0xFF);
 	outb(0x1F4, (secno >> 8) & 0xFF);
