@@ -23,7 +23,8 @@ ide_wait_ready(bool check_error)
 	// 	/* do nothing */;
 
 	//for lab5 ex1 challenge
-	r = inb(0x1F7);
+	outb(0x3F6, (0<<1));
+	r = inb(0x3F6);
 	if((r&(IDE_BSY|IDE_DRDY)) != IDE_DRDY) 
 	{
 		envid_t id = sys_getenvid();
@@ -52,7 +53,8 @@ ide_probe_disk1(void)
 	// 	/* do nothing */;
 
 	//for lab5 ex1 challenge
-	r = inb(0x1F7);
+	outb(0x3F6, (0<<1));
+	r = inb(0x3F6);
 	if((r&(IDE_BSY|IDE_DRDY)) != IDE_DRDY) 
 	{
 		envid_t id = sys_getenvid();
@@ -84,11 +86,12 @@ ide_read(uint32_t secno, void *dst, size_t nsecs)
 
 	ide_wait_ready(0);
 
+	outb(0x1F6, 0xE0 | ((diskno&1)<<4) | ((secno>>24)&0x0F));
+	outb(0x3F6, (0<<1));
 	outb(0x1F2, nsecs);
 	outb(0x1F3, secno & 0xFF);
 	outb(0x1F4, (secno >> 8) & 0xFF);
 	outb(0x1F5, (secno >> 16) & 0xFF);
-	outb(0x1F6, 0xE0 | ((diskno&1)<<4) | ((secno>>24)&0x0F));
 	outb(0x1F7, 0x20);	// CMD 0x20 means read sector
 	for (; nsecs > 0; nsecs--, dst += SECTSIZE) {
 		if ((r = ide_wait_ready(1)) < 0)
@@ -108,11 +111,12 @@ ide_write(uint32_t secno, const void *src, size_t nsecs)
 
 	ide_wait_ready(0);
 
+	outb(0x1F6, 0xE0 | ((diskno&1)<<4) | ((secno>>24)&0x0F));
+	outb(0x3F6, (0<<1));
 	outb(0x1F2, nsecs);
 	outb(0x1F3, secno & 0xFF);
 	outb(0x1F4, (secno >> 8) & 0xFF);
 	outb(0x1F5, (secno >> 16) & 0xFF);
-	outb(0x1F6, 0xE0 | ((diskno&1)<<4) | ((secno>>24)&0x0F));
 	outb(0x1F7, 0x30);	// CMD 0x30 means write sector
 
 	for (; nsecs > 0; nsecs--, src += SECTSIZE) {

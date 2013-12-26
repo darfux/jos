@@ -95,7 +95,7 @@ waitdisk(void)
 {
 	// wait for disk reaady
 	while ((inb(0x1F7) & 0xC0) != 0x40)
-		/* do nothing */;
+		/* do nothing */__asm __volatile("xchg %bx, %bx");
 }
 
 void
