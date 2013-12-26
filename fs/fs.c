@@ -226,7 +226,6 @@ read_super(void)
 {
 	int r;
 	char *blk;
-
 	if ((r = read_block(1, &blk)) < 0)
 		panic("cannot read superblock: %e", r);
 
@@ -348,7 +347,7 @@ fs_init(void)
 		ide_set_disk(0);
 	
 	read_super();
-	check_write_block();
+	// check_write_block();
 	read_bitmap();
 }
 

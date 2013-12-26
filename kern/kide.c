@@ -8,7 +8,7 @@
 void
 kide_init()
 {
-	cprintf("	Setup ide(IRQ14) interrupts via 8259A\n");
-	irq_setmask_8259A(irq_mask_8259A & ~(1<<14));
-	cprintf("	unmasked ide(IRQ14) interrupt\n");
+	cprintf("	Setup ide(IRQ%d) interrupts via 8259A\n", IDENUM);
+	irq_setmask_8259A(irq_mask_8259A & ~(1<<IDENUM));
+	cprintf("	unmasked ide(IRQ%d) interrupt\n", IDENUM);
 }

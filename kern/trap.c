@@ -10,6 +10,7 @@
 #include <kern/syscall.h>
 #include <kern/sched.h>
 #include <kern/kclock.h>
+#include <kern/kide.h>
 #include <kern/picirq.h>
 
 static struct Taskstate ts;
@@ -230,7 +231,7 @@ trap_dispatch(struct Trapframe *tf)
 			// syscall(pr.reg_eax, pr.reg_edx, pr.reg_ecx, pr.reg_ebx, pr.reg_edi, pr.reg_esi);
 			tf->tf_regs.reg_eax = syscall(pr.reg_eax, pr.reg_edx, pr.reg_ecx, pr.reg_ebx, pr.reg_edi, pr.reg_esi);
 			return;
-		case T_IDE:
+		case IRQ_OFFSET+IDENUM:
 			ide_handler(tf);
 	}
 	// Handle clock and serial interrupts.
@@ -242,7 +243,6 @@ trap_dispatch(struct Trapframe *tf)
 
 	// Handle keyboard interrupts.
 	// LAB 5: Your code here.
-
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -400,5 +400,10 @@ page_fault_handler(struct Trapframe *tf)
 void
 ide_handler(struct Trapframe* tf)
 {
-	panic("ide_handler not implement!");
+	cprintf("[%08x] IDE is ready!\n", curenv->env_id);
+	struct Env* fs= &envs[1];
+	if(curenv == fs) env_run(curenv);
+
+	fs->env_status = ENV_RUNNABLE;
+	env_run(fs);
 }
