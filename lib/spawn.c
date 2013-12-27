@@ -240,14 +240,6 @@ spawnl(const char *prog, const char *arg0, ...)
 	return spawn(prog, &arg0);
 }
 
-//for lab5 ex7 exec challenge
-int
-execl(const char *prog, const char *arg0, ...)
-{
-	envid_t id = sys_getenvid();
-	return sys_exec(id, prog, &arg0);
-}
-
 // Set up the initial stack page for the new child process with envid 'child'
 // using the arguments array pointed to by 'argv',
 // which is a null-terminated array of pointers to null-terminated strings.

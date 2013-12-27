@@ -1,7 +1,7 @@
 #include <inc/lib.h>
 #include <inc/elf.h>
 
-#define REQVA		NULL//0x0ffff000
+#define REQVA		0x0ffff000
 #define UTEMP2USTACK(addr)	((void*) (addr) + (USTACKTOP - PGSIZE) - UTEMP)
 #define UTEMP2			(UTEMP + PGSIZE)
 #define UTEMP3			(UTEMP2 + PGSIZE)
@@ -52,7 +52,7 @@ exec_help(const char *prog, envid_t id)
 	//we are in parent - ren
 	
 	child_tf = envs[ENVX(child)].env_tf;
-	envid_t tempPaID = envs[ENVX(child)].env_parent_id;
+	// envid_t tempPaID = envs[ENVX(child)].env_parent_id;
 
 	// envs[ENVX(child)].env_parent_id = sys_getenvid();
 	// sys_env_destroy(child);
@@ -104,7 +104,7 @@ exec_help(const char *prog, envid_t id)
 				if ((r = readn(fd, (void *)(UTEMP + (ph->p_va % PGSIZE)), read )) < 0)
 					goto error;
 				
-				if ((r = sys_page_map(tempPaID, (void *)UTEMP,
+				if ((r = sys_page_map(sys_getenvid(), (void *)UTEMP,
 									  child, (void *)ph->p_va - (ph->p_va % PGSIZE), perm)) < 0 )
 					goto error;
 
@@ -135,7 +135,7 @@ exec_help(const char *prog, envid_t id)
 					read+=no_bytes;				
 				}	
 
-				if ((r = sys_page_map(tempPaID, (void *)UTEMP,
+				if ((r = sys_page_map(sys_getenvid(), (void *)UTEMP,
 									  child, (void *)(p_va+i*PGSIZE), perm)) < 0 )
 					goto error;			
 			}			
@@ -162,12 +162,6 @@ error:
 }
 
 void
-exec(const char *program)
-{
-	cprintf("%s", program);
-}
-
-void
 serve()
 {
 	uint32_t req, whom;
@@ -177,9 +171,9 @@ serve()
 	{
 		perm = 0;
 		req = ipc_recv((int32_t *) &whom, (void*)REQVA, &perm);
-
-		cprintf("[execer]i get %08x\n", req);
-		error = exec_help("hello", req);
+		char* prog = ((struct Exreq*)REQVA)->prog;
+		cprintf("[execer]i get %08x, prog: %s\n", req, prog) ;
+		error = exec_help(prog, req);
 		if(error<0) panic("[execer]error in execer: %e\n", error);
 		cprintf("[execer]exec %08x over\n", req);
 	}

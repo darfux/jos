@@ -58,7 +58,7 @@ int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
 
 //for lab5 ex7 exec challenge
-int sys_exec(envid_t envid,  const char *prog, const char **argv);
+// int sys_exec(envid_t envid,  const char *prog, const char **argv);
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t sys_exofork(void) __attribute__((always_inline));
@@ -118,7 +118,8 @@ envid_t	spawn(const char *program, const char **argv);
 envid_t	spawnl(const char *program, const char *arg0, ...);
 
 //for lab5 ex7 exec challenge
-envid_t	execl(const char *program, const char *arg0, ...);
+void	exec(const char *program);
+// envid_t	execl(const char *program, const char *arg0, ...);
 
 
 /* File open modes */
