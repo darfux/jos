@@ -10,6 +10,12 @@ extern uint8_t execipcbuf[PGSIZE];	// page-aligned, declared in entry.S
 
 static int init_stack(envid_t child, const char **argv, uintptr_t *init_esp);
 
+
+//=w=
+//this function is almost same as spawn
+//while it uses the current request env id&tf
+//to be the new env id&tf
+//and loads resource directly in it
 int
 exec_help(const char *prog, envid_t id)
 {
