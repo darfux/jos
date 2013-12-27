@@ -116,7 +116,7 @@ sys_ipc_recv(void *dstva)
 
 //for lab5 ex7 exec challenge
 int
-sys_exec(envid_t envid,  const char *prog, const char **argv)
+sys_env_clean_for_exec(envid_t envid)
 {
-	return syscall(SYS_exec, envid, (uint32_t)prog, (uint32_t)argv, 0, 0);
+	return syscall(SYS_env_clean_for_exec, envid, 0, 0, 0, 0);
 }

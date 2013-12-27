@@ -452,6 +452,51 @@ env_free(struct Env *e)
 	LIST_INSERT_HEAD(&env_free_list, e, env_link);
 }
 
+//lab5 ex7 execchallenge 
+//just for execer
+void
+env_clean_for_exec(struct Env *e)
+{
+	pte_t *pt;
+	uint32_t pdeno, pteno;
+	physaddr_t pa;
+
+	// Note the environment's demise.
+	// cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->engit v_id);
+
+	// Flush all mapped pages in the user portion of the address space
+	static_assert(UTOP % PTSIZE == 0);
+	for (pdeno = 0; pdeno < PDX(UTOP); pdeno++) {
+
+		// only look at mapped page tables
+		if (!(e->env_pgdir[pdeno] & PTE_P))
+			continue;
+
+		// find the pa and va of the page table
+		pa = PTE_ADDR(e->env_pgdir[pdeno]);
+		pt = (pte_t*) KADDR(pa);
+
+		// unmap all PTEs in this page table
+		for (pteno = 0; pteno <= PTX(~0); pteno++) {
+			if (pt[pteno] & PTE_P)
+				page_remove(e->env_pgdir, PGADDR(pdeno, pteno, 0));
+		}
+
+		// free the page table itself
+		e->env_pgdir[pdeno] = 0;
+		page_decref(pa2page(pa));
+	}
+
+	// free the page directory
+	pa = e->env_cr3;
+	e->env_pgdir = 0;
+	e->env_cr3 = 0;
+	page_decref(pa2page(pa));
+
+	env_setup_vm(e);
+	cprintf("clean for exec finished\n");
+}
+
 //
 // Frees environment e.
 // If e was the current env, then runs a new environment (and does not return

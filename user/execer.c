@@ -25,6 +25,7 @@ exec_help(const char *prog, envid_t id)
 	envid_t child = id;
 
 	const char* argv[] = { 0 };
+	sys_env_clean_for_exec(child);
 
 	int fd;
 	int r;
@@ -69,7 +70,6 @@ exec_help(const char *prog, envid_t id)
 		goto error;
 	
 	child_tf.tf_esp = init_esp;
-
 
 	//"load" executable in child's address space - ren
 
@@ -194,13 +194,7 @@ umain(void)
 	serve();
 }
 
-// Set up the initial stack page for the new child process with envid 'child'
-// using the arguments array pointed to by 'argv',
-// which is a null-terminated array of pointers to null-terminated strings.
-//
-// On success, returns 0 and sets *init_esp
-// to the initial stack pointer with which the child should start.
-// Returns < 0 on failure.
+//just copy from spawn.c
 static int
 init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 {
