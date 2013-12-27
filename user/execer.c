@@ -179,6 +179,7 @@ serve()
 		req = ipc_recv((int32_t *) &whom, (void*)REQVA, &perm);
 		char* prog = ((struct Exreq*)REQVA)->prog;
 		cprintf("[execer]i get %08x, prog: %s\n", req, prog) ;
+		sys_env_set_status(req, ENV_NOT_RUNNABLE);
 		error = exec_help(prog, req);
 		if(error<0) panic("[execer]error in execer: %e\n", error);
 		cprintf("[execer]exec %08x over\n", req);
