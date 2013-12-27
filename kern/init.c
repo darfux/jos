@@ -54,6 +54,9 @@ i386_init(void)
 	// Start fs.
 	ENV_CREATE(fs_fs);
 
+	// Start execer
+	ENV_CREATE(user_execer);
+
 	// Start init
 #if defined(TEST)
 	// Don't touch -- used by grading script!
@@ -63,6 +66,7 @@ i386_init(void)
 	// ENV_CREATE(user_over4mb);
 	// ENV_CREATE(user_spawnhello);
 	ENV_CREATE(user_exechello);
+	// ENV_CREATE(user_pingpong);
 	// ENV_CREATE(user_icode);
 #endif
 

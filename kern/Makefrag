@@ -43,9 +43,9 @@ KERN_BINFILES :=	user/idle \
 			user/testfsipc \
 			user/writemotd \
 			user/icode \
-			user/over4mb \
 			user/spawnhello \
 			user/exechello \
+			user/execer \
 			fs/fs
 
 KERN_OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))

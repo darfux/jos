@@ -19,10 +19,13 @@
 #include <inc/trap.h>
 
 #include <inc/fs.h>
+#include <inc/execer.h>
 #include <inc/fd.h>
 #include <inc/args.h>
 
 #define USED(x)		(void)(x)
+
+#define EXESERV 2
 
 // libos.c or entry.S
 extern char *binaryname;
@@ -53,6 +56,8 @@ int	sys_page_map(envid_t src_env, void *src_pg,
 int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
+
+//for lab5 ex7 exec challenge
 int sys_exec(envid_t envid,  const char *prog, const char **argv);
 
 // This must be inlined.  Exercise for reader: why?
@@ -112,6 +117,7 @@ int	pageref(void *addr);
 envid_t	spawn(const char *program, const char **argv);
 envid_t	spawnl(const char *program, const char *arg0, ...);
 
+//for lab5 ex7 exec challenge
 envid_t	execl(const char *program, const char *arg0, ...);
 
 

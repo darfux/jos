@@ -238,6 +238,7 @@ trap_dispatch(struct Trapframe *tf)
 	// LAB 4: Your code here.
 	if (tf->tf_trapno == IRQ_OFFSET + 0)
 	{
+		// if(tf->tf_cs == GD_KT) panic("kernel int by timmer!");
 		sched_yield();				
 	}
 

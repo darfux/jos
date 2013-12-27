@@ -467,7 +467,10 @@ sys_ipc_recv(void *dstva)
 static int 
 sys_exec(envid_t id, const char *prog, const char **argv)
 {
+	// env_destroy(&envs[ENVX(id)]);
 	panic("sys_exec not implemented");
+
+	return 0;
 }
 
 

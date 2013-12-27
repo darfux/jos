@@ -69,7 +69,7 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 
 	while(error<0)
 	{
-		if(error != -E_IPC_NOT_RECV) panic("not E_IPC_NOT_RECV");
+		if(error != -E_IPC_NOT_RECV) panic("not E_IPC_NOT_RECV %e", error);
 		//   Use sys_yield() to be CPU-friendly.
 		sys_yield();
 		error = sys_ipc_try_send(to_env, val, pg, perm);	
