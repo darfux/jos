@@ -13,6 +13,7 @@ USERAPPS := 		$(OBJDIR)/user/cat \
 			$(OBJDIR)/user/lsfd \
 			$(OBJDIR)/user/num \
 			$(OBJDIR)/user/forktree \
+			$(OBJDIR)/user/hello \
 			$(OBJDIR)/user/primes
 
 FSIMGTXTFILES :=	fs/newmotd \

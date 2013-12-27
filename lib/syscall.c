@@ -114,3 +114,9 @@ sys_ipc_recv(void *dstva)
 	return syscall(SYS_ipc_recv, (uint32_t) dstva, 0, 0, 0, 0);
 }
 
+
+int
+sys_exec(envid_t envid,  const char *prog, const char **argv)
+{
+	return syscall(SYS_exec, envid, (uint32_t)prog, (uint32_t)argv, 0, 0);
+}

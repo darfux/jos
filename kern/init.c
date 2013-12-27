@@ -61,7 +61,8 @@ i386_init(void)
 #else
 	// Touch all you want.
 	// ENV_CREATE(user_over4mb);
-	ENV_CREATE(user_testfsipc);
+	// ENV_CREATE(user_spawnhello);
+	ENV_CREATE(user_exechello);
 	// ENV_CREATE(user_icode);
 #endif
 
