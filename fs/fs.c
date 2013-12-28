@@ -767,7 +767,7 @@ file_truncate_blocks(struct File *f, off_t newsize)
 			panic("wrong in truncating %e\n", error);
 		}
 		if(parent!=-1)
-		{
+		{//we set in block_walk
 			free_block(parentblk[0]);	
 		}
 		else
@@ -776,7 +776,6 @@ file_truncate_blocks(struct File *f, off_t newsize)
 		}
 		tmpblk = parentblk;
 	}
-
 }
 
 int
