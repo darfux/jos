@@ -8,6 +8,9 @@
 #define BITMAP_START_BLOCK RESERVED_BLOCK_NUM
 #define DIV_ROUNDUP(dividend,divisor) (((dividend)+(divisor)-1)/(divisor))
 #define BITMAPNO(blkno) (BITMAP_START_BLOCK+DIV_ROUNDUP((blkno),BLKBITSIZE))
+
+#define INDRECTMOUNT (BLKSIZE/4-NDIRECT) //amount of block pointer that one indirect block entry can catch
+#define FILE_IND_BLKOFFSET(fileno) ((fileno-NDIRECT)%INDRECTMOUNT+NDIRECT) //calcu the offset filebno in it owner
 //=m=
 
 struct Super *super;		// superblock
@@ -378,10 +381,8 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 {
 	int r;
 	uint32_t *ptr;
-	char *blk;
+	char *blk=NULL;
 	
-	#define INDRECTMOUNT (BLKSIZE/4-NDIRECT) //amount of block pointer that one indirect block entry can catch
-	#define FILE_IND_BLKOFFSET(fileno) ((fileno-NDIRECT)%INDRECTMOUNT+NDIRECT) //calcu the offset filebno in it owner
 	int totalBlockNum = super->s_nblocks;
 	int maxIndirect = DIV_ROUNDUP((totalBlockNum-NDIRECT), (INDRECTMOUNT+1));
 
@@ -393,7 +394,8 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 	{
 		int fileIndNo = DIV_ROUNDUP(filebno-NDIRECT+1, INDRECTMOUNT);
 		uint32_t* indirect = &(f->f_indirect);
-
+		uint32_t* parentblk=NULL;
+		int parentblkno=-1;
 		//loop to find the owner of filebno
 		for(; fileIndNo>0; fileIndNo--)
 		{
@@ -413,6 +415,7 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 			{
 				alloc = 0;	// we did not allocate a block
 			}
+			parentblk = (uint32_t*)blk;
 			if ((r = read_block((*indirect), &blk)) < 0)
 			{
 				return r;
@@ -423,6 +426,8 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 				memset(blk, 0, BLKSIZE);
 			}
 			//set the pointer to the next indirect block
+			((uint32_t*)blk)[1] = parentblkno;
+			parentblkno = (*indirect);
 			indirect = (uint32_t*)blk;
 		}
 		ptr = (uint32_t*)blk + FILE_IND_BLKOFFSET(filebno);
@@ -717,11 +722,61 @@ file_truncate_blocks(struct File *f, off_t newsize)
 	// been allocated (f->f_indirect != 0), then free the indirect block too.
 	// (Remember to clear the f->f_indirect pointer so you'll know
 	// whether it's valid!)
-	if(new_nblocks<=NDIRECT && old_nblocks>NDIRECT)
+
+	// if(new_nblocks<=NDIRECT && old_nblocks>NDIRECT)
+	// {
+	// 	free_block(f->f_indirect);				
+	// 	f->f_indirect = 0;
+	// }
+	//for ex6 4mb challenge
+	int fileIndNoOld=0, fileIndNoNew=0;
+	if(old_nblocks-NDIRECT>0)
 	{
-		free_block(f->f_indirect);				
-		f->f_indirect = 0;
+		fileIndNoOld = DIV_ROUNDUP(old_nblocks-NDIRECT, INDRECTMOUNT);
 	}
+	if(new_nblocks-NDIRECT>0)
+	{
+		fileIndNoNew = DIV_ROUNDUP(new_nblocks-NDIRECT, INDRECTMOUNT);
+	}
+	else
+	{
+		fileIndNoNew=0;
+	}
+	char* tmpblk;
+	if ((error = read_block(f->f_indirect, &tmpblk) < 0))
+	{
+		panic("wrong in truncating %e\n", error);
+	}
+
+	int tmp = fileIndNoOld-1;
+	while(tmp-->0)
+	{
+		if ((error = read_block(tmpblk[0], &tmpblk) < 0))
+		{
+			panic("wrong in truncating %e\n", error);
+		}
+	}
+	int parent;
+	char* parentblk;
+	tmp = fileIndNoOld-fileIndNoNew;
+	while(tmp-->0)
+	{
+		parent = ((int*)tmpblk)[1];
+		if ((error = read_block(tmpblk[1], &parentblk) < 0))
+		{
+			panic("wrong in truncating %e\n", error);
+		}
+		if(parent!=-1)
+		{
+			free_block(parentblk[0]);	
+		}
+		else
+		{//reach the tail
+			free_block(f->f_indirect);
+		}
+		tmpblk = parentblk;
+	}
+
 }
 
 int
