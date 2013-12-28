@@ -33,6 +33,13 @@ syscall(int num, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5
 	
 	return ret;
 }
+//--------------------------------LX---------------------
+int
+sys_env_set_divzero_upcall(envid_t envid, void *upcall)
+{
+	return syscall(SYS_env_set_divzero_upcall, envid, (uint32_t) upcall, 0, 0, 0);
+}
+//--------------------------------LX-----------------------
 
 void
 sys_cputs(const char *s, size_t len)

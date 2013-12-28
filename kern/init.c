@@ -63,9 +63,10 @@ i386_init(void)
 	ENV_CREATE2(TEST, TESTSIZE);
 #else
 	// Touch all you want.
+	ENV_CREATE(user_sfork);
 	// ENV_CREATE(user_over4mb);
 	// ENV_CREATE(user_spawnhello);
-	ENV_CREATE(user_exechello);
+	//ENV_CREATE(user_exechello);
 	// ENV_CREATE(user_pingpong);
 	// ENV_CREATE(user_icode);
 #endif

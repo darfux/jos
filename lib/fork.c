@@ -172,10 +172,135 @@ fork(void)
 	return envid;
 }
 
-// Challenge!
+//-----------------------LX--------------------------
+static int duappage_share(envid_t envid,unsigned pn )
+{
+	int r;
+	void * addr =(void *) ((uint32_t)pn * PGSIZE);
+	pte_t pte =vpt[VPN(addr)];
+	if((pte&PTE_W)>0)
+	{
+		if((r=sys_page_map(0,addr,envid,addr,PTE_U|PTE_W|PTE_P))<0)
+		{
+			panic("duappage_share:page re-mapping failed\n");
+		}
+	}
+	else
+	{
+		if((r=sys_page_map(0,addr,envid,addr,PTE_U|PTE_P))<0)
+		{
+			panic("duappage_share:page re-mapping failed\n");
+		}
+	}
+	return 0;
+}
+static int duappage_cow(envid_t envid,unsigned pn)
+{
+	int r;
+	void * addr =(void *) ((uint32_t)pn * PGSIZE);
+	pte_t pte =vpt[VPN(addr)];
+	if ((r = sys_page_map (0, addr, envid, addr, PTE_U|PTE_P|PTE_COW)) < 0)
+	{
+		panic ("duppage: page re-mapping failed at 1 : %e", r);
+	}
+	if ((r = sys_page_map (0, addr, 0, addr, PTE_U|PTE_P|PTE_COW)) < 0)
+	{
+		panic ("duppage: page re-mapping failed at 2 : %e", r);	
+	}
+	return 0;
+
+}
+static int
+sduppage(envid_t envid, unsigned pn, int need_cow)
+{
+	int r;
+	void * addr = (void *) ((uint32_t) pn * PGSIZE);
+	pte_t pte = vpt[VPN(addr)];
+	if (need_cow || (pte & PTE_COW) > 0) 
+	{
+		if ((r = sys_page_map (0, addr, envid, addr, PTE_U|PTE_P|PTE_COW)) < 0)
+			panic ("duppage: page re-mapping failed at 1 : %e", r);
+		if ((r = sys_page_map (0, addr, 0, addr, PTE_U|PTE_P|PTE_COW)) < 0)
+			panic ("duppage: page re-mapping failed at 2 : %e", r);
+	}
+	else
+	{
+		if ((pte & PTE_W) > 0) 
+		{
+			if ((r = sys_page_map (0,addr, envid, addr, PTE_U|PTE_W|PTE_P)) < 0)
+			{
+				panic("duppage:page re-mapping failed 3\n");
+			}
+		}
+		else
+		{
+			if ((r = sys_page_map (0,addr, envid, addr, PTE_U|PTE_P)) < 0)
+			{
+				panic("duppage:page re-mapping failed 4\n");
+			}
+		}
+	}
+	return 0;
+}
+
 int
 sfork(void)
 {
-	panic("sfork not implemented");
-	return -E_INVAL;
+	envid_t envid;  
+	uint32_t addr;  
+	int r;  
+	extern unsigned char end[];  
+	set_pgfault_handler(pgfault);  
+	envid = sys_exofork();  
+	if (envid < 0)  
+		panic("sys_exofork: %e", envid);  
+	//child  
+	if (envid == 0) 
+	{  
+		//can't set pgh here ,must before child run  
+		//because when child run ,it will make a page fault  
+		env = &envs[ENVX(sys_getenvid())];  
+		return 0;  
+	}
+
+
+
+	int i;
+	int j;
+	int flag=1;
+
+	for(addr=USTACKTOP-PGSIZE;addr>=UTEXT;addr-=PGSIZE)
+	{
+		if((vpd[VPD(addr)] & PTE_P) > 0 && (vpt[VPN(addr)] & PTE_P) > 0 && (vpt[VPN(addr)] & PTE_U) > 0)
+		{
+			if(flag==1)
+			{
+				duappage_cow(envid,VPN(addr));
+				//sduppage(envid,VPN(addr),flag);
+			}
+			else
+			{
+				duappage_share(envid,VPN(addr));
+				//sduppage(envid,VPN(addr),0);
+			}
+		}
+		else
+		{
+			flag=0;
+		}
+	}
+	//cprintf("get out the loop\n\n");
+
+	//copy user exception stack  
+	if ((r = sys_page_alloc(envid, (void *)(UXSTACKTOP - PGSIZE), PTE_P|PTE_U|PTE_W)) < 0)  
+		panic("sys_page_alloc: %e", r);  
+	sys_env_set_pgfault_upcall(envid, env->env_pgfault_upcall);  
+
+	//set child status  
+	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)  
+		panic("sys_env_set_status: %e", r);  
+	return envid;  
+
 }
+
+//-----------------------LX--------------------------

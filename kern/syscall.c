@@ -11,6 +11,20 @@
 #include <kern/syscall.h>
 #include <kern/console.h>
 #include <kern/sched.h>
+//-------------------LX----------------------
+static int
+sys_env_set_divzero_upcall(envid_t envid, void *func)
+{
+	// LAB 4: Your code here.
+	struct Env * target_env;
+	if(envid2env(envid,&target_env,1)<0)
+		return -E_BAD_ENV;
+	target_env->env_divzero_upcall=func;
+	return 0;
+
+	//panic("sys_env_set_pgfault_upcall not implemented");
+}
+//-------------------LX----------------------
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -520,6 +534,11 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
 		case SYS_env_clean_for_exec:
 			return sys_env_clean_for_exec((envid_t)a1);				
+		//------------------------LX------------------------------------
+		case SYS_env_set_divzero_upcall:
+		    return sys_env_set_divzero_upcall((envid_t)a1 , (void *)a2);break;
+		//------------------------LX------------------------------------ 
+		
 		default:
 			return -E_INVAL;
 	}

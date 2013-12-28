@@ -8,3 +8,4 @@
 void kide_init(void);
 
 #endif	// !JOS_KERN_KIDE_H
+

@@ -210,18 +210,30 @@ print_regs(struct PushRegs *regs)
 	cprintf("  ecx  0x%08x\n", regs->reg_ecx);
 	cprintf("  eax  0x%08x\n", regs->reg_eax);
 }
-
+//---------------------LX-----------------
+void divzero_handler(struct Trapframe *tf);
+//---------------------LX-----------------
 static void
 trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
 	struct PushRegs pr = tf->tf_regs;//can not put in the switch statement
+	//------------------LX---------
+	if(tf->tf_trapno== T_DIVIDE )
+	{
+		//cprintf("div error:entry the trap_dispatch\n");
+		//__asm __volatile("xchg %bx, %bx");
+		divzero_handler(tf);
+		return;
+	}
+	//-----------------LX----------
 	switch(tf->tf_trapno)
 	{
 		case T_PGFLT:
 			page_fault_handler(tf);
 			return;
+
 		case T_BRKPT:
 			monitor(tf);
 			return;
@@ -408,3 +420,51 @@ ide_handler(struct Trapframe* tf)
 	fs->env_status = ENV_RUNNABLE;
 	env_run(fs);
 }
+//-------------------LX-------------------
+void
+divzero_handler(struct Trapframe *tf)
+{
+	uint32_t fault_va;
+
+	// Read processor's CR2 register to find the faulting address
+	fault_va = rcr2();
+
+	// Handle kernel-mode page faults.
+	
+	// LAB 3: Your code here.
+    if((tf->tf_cs&3)==0)
+		panic("kernel mode page faults");
+	
+	// LAB 4: Your code here.
+    if(curenv->env_divzero_upcall!=NULL)
+	{
+		struct UTrapframe* utrapfame;
+		if(UXSTACKTOP>tf->tf_esp &&tf->tf_esp>=UXSTACKTOP-PGSIZE)
+		{
+			utrapfame=(struct UTrapframe *)(tf->tf_esp-sizeof(struct UTrapframe)-4);
+		}
+		else
+		{
+			utrapfame=(struct UTrapframe *)(UXSTACKTOP-sizeof(struct UTrapframe));
+		}
+		//cprintf("???????\n\n");
+		user_mem_assert(curenv,(void *)utrapfame,
+			sizeof(struct UTrapframe),PTE_U|PTE_W);
+		utrapfame->utf_err=tf->tf_err;
+		utrapfame->utf_regs=tf->tf_regs;
+		utrapfame->utf_eip=tf->tf_eip+1;
+		utrapfame->utf_eflags=tf->tf_eflags;
+		utrapfame->utf_esp=tf->tf_esp;
+		utrapfame->utf_fault_va=0;
+		curenv->env_tf.tf_eip=(uint32_t)curenv->env_divzero_upcall;
+		curenv->env_tf.tf_esp=(uint32_t)utrapfame;
+		env_run(curenv);
+	}
+	// Destroy the environment that caused the fault.
+	cprintf("[%08x] user divzero trap ip %08x\n",
+		curenv->env_id,tf->tf_eip);
+	print_trapframe(tf);
+	env_destroy(curenv);
+}
+
+//-------------------LX-------------------

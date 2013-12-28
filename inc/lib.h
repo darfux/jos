@@ -36,7 +36,9 @@ void	exit(void);
 
 // pgfault.c
 void	set_pgfault_handler(void (*handler)(struct UTrapframe *utf));
-
+//--------------------------LX-------------
+void	set_divzero_handler(void (*handler)(struct UTrapframe *utf));
+//--------------------------LX--------------
 // readline.c
 char*	readline(const char *buf);
 
@@ -59,6 +61,9 @@ int	sys_ipc_recv(void *rcv_pg);
 int sys_env_clean_for_exec(envid_t envid);
 //for lab5 ex7 exec challenge
 // int sys_exec(envid_t envid,  const char *prog, const char **argv);
+//------------------------LX-------------------------
+int	sys_env_set_divzero_upcall(envid_t env, void *upcall);
+//------------------------LX-------------------------
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t sys_exofork(void) __attribute__((always_inline));
