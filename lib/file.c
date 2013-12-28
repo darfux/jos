@@ -46,8 +46,8 @@ open(const char *path, int mode)
 	int error;
 	error = fd_alloc(&fd);
 	if(error<0) return error;
-	
 
+	//clean macro when get error
 	#define FCRR do{\
 					fd_close(fd, 0);\
 					return error;\
@@ -58,7 +58,7 @@ open(const char *path, int mode)
 
 	error = fmap(fd, 0, fd->fd_file.file.f_size);
 	if(error<0) FCRR;
-	
+
 	return fd2num(fd);
 }
 
@@ -80,7 +80,7 @@ file_close(struct Fd *fd)
 	start=(void*)fd2data(fd);
 	end=(void*)(start + fdf.file.f_size);
 
-
+	//mark the dirty
 	void *va;
 	for(va=start; va <= end; va+=PGSIZE)
 	{
@@ -94,7 +94,7 @@ file_close(struct Fd *fd)
 
 	error = fsipc_close(fdf.id);
 	if(error< 0) return error;
-	
+
 	funmap(fd, fdf.file.f_size, 0, 0);
 	return 0;
 }

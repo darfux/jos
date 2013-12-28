@@ -90,7 +90,7 @@ fd_lookup(int fdnum, struct Fd **fd_store)
 
 	struct Fd *fd;
 	fd = INDEX2FD(fdnum);	
-	
+
 	bool outOfRange = (fdnum>=MAXFD || fdnum<0);
 	bool notMapped = !va_mapped((void*)fd);
 	if(outOfRange||notMapped) return -E_INVAL;
