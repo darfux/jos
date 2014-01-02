@@ -24,7 +24,7 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 
 	//   If 'pg' is null, pass sys_ipc_recv a value that it will understand
 	//   as meaning "no page".  (Zero is not the right value.
-	if(pg!=NULL) parm=(void*)UTOP+1;
+	if(pg==NULL) parm=(void*)UTOP;
 	error = sys_ipc_recv(parm);
 	if(!error)
 	{
@@ -63,16 +63,15 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 
 	//   If 'pg' is null, pass sys_ipc_recv a value that it will understand
 	//   as meaning "no page".  (Zero is not the right value.)
-	pg = (pg==NULL ? (void*)UTOP+1 : pg);
+	if(pg==NULL) pg=(void*)UTOP;
 
 	int error = sys_ipc_try_send(to_env, val, pg, perm);
 
 	while(error<0)
 	{
-		if(error != -E_IPC_NOT_RECV) panic("not E_IPC_NOT_RECV");
+		if(error != -E_IPC_NOT_RECV) panic("not E_IPC_NOT_RECV %e", error);
 		//   Use sys_yield() to be CPU-friendly.
 		sys_yield();
 		error = sys_ipc_try_send(to_env, val, pg, perm);	
 	}
 }
-

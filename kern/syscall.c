@@ -11,6 +11,20 @@
 #include <kern/syscall.h>
 #include <kern/console.h>
 #include <kern/sched.h>
+//-------------------LX----------------------
+static int
+sys_env_set_divzero_upcall(envid_t envid, void *func)
+{
+	// LAB 4: Your code here.
+	struct Env * target_env;
+	if(envid2env(envid,&target_env,1)<0)
+		return -E_BAD_ENV;
+	target_env->env_divzero_upcall=func;
+	return 0;
+
+	//panic("sys_env_set_pgfault_upcall not implemented");
+}
+//-------------------LX----------------------
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -147,7 +161,22 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	// LAB 4: Your code here.
 	// Remember to check whether the user has supplied us with a good
 	// address!
-	panic("sys_set_trapframe not implemented");
+	// panic("sys_set_trapframe not implemented");
+
+	//come from lab5 TAT
+	struct Env *e;
+	int error;
+
+	error = envid2env(envid, &e, 1);
+	if (error< 0) return error;
+
+	user_mem_assert(curenv, (const void *)tf, sizeof(struct Trapframe), 0);
+	
+	tf->tf_eflags |= FL_IF;
+	tf->tf_cs |= 3;
+	e->env_tf = *tf;
+	
+	return 0;
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -377,14 +406,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	
 	if(!env->env_ipc_recving) return -E_IPC_NOT_RECV;
 	
-	if(env->env_ipc_dstva!=0 && srcva!= 0)
+	if(env->env_ipc_dstva!=0 && (uint32_t)srcva < UTOP)
 	{
-		
-		//	-E_INVAL if srcva < UTOP but srcva is not mapped in the caller's
-		//		address space.
-		int overTop = (uintptr_t)srcva >= UTOP;
-		if(overTop) return -E_INVAL;
-
 		//	-E_INVAL if srcva < UTOP but srcva is not page-aligned.
 		int notAligned = (uintptr_t)srcva%PGSIZE;
 		if(notAligned) return -E_INVAL;
@@ -437,7 +460,7 @@ sys_ipc_recv(void *dstva)
 	// LAB 4: Your code here.
 	// panic("sys_ipc_recv not implemented");
 	// return 0;
-	int overTop = ((uintptr_t)dstva >= UTOP);
+	int overTop = ((uintptr_t)dstva > UTOP);
 	int notAligned = (uintptr_t)dstva%PGSIZE;
 	if(overTop||notAligned) return -E_INVAL;
 	
@@ -448,6 +471,14 @@ sys_ipc_recv(void *dstva)
 	curenv->env_tf.tf_regs.reg_eax = 0;
 
 	sched_yield();
+}
+
+static int
+sys_env_clean_for_exec(envid_t env_to_free)
+{
+	if(curenv != &envs[2]) panic("Only execer can call me!\n");
+	env_clean_for_exec(&envs[ENVX(env_to_free)]);
+	return 0;
 }
 
 
@@ -498,6 +529,16 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		case SYS_ipc_recv:
 			//sys_ipc_recv(void *dstva)
 			return sys_ipc_recv((void *)a1);
+		case SYS_env_set_trapframe:
+			//sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
+			return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
+		case SYS_env_clean_for_exec:
+			return sys_env_clean_for_exec((envid_t)a1);				
+		//------------------------LX------------------------------------
+		case SYS_env_set_divzero_upcall:
+		    return sys_env_set_divzero_upcall((envid_t)a1 , (void *)a2);break;
+		//------------------------LX------------------------------------ 
+		
 		default:
 			return -E_INVAL;
 	}

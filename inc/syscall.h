@@ -18,6 +18,10 @@ enum
 	SYS_yield,
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
+	SYS_env_clean_for_exec,
+	//---------------------LX------------
+	SYS_env_set_divzero_upcall,
+	//---------------------LX------------
 	NSYSCALLS
 };
 

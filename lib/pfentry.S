@@ -32,6 +32,7 @@
 
 .text
 .globl _pgfault_upcall
+.globl _divzero_upcall
 _pgfault_upcall:
 	// Call the C page fault handler.
 	pushl %esp			// function argument: pointer to UTF
@@ -87,6 +88,45 @@ _pgfault_upcall:
 	// LAB 4: Your code here.
 	movl (%esp), %esp
 	addl $-4, %esp
+
+	// Return to re-execute the instruction that faulted.
+	// LAB 4: Your code here.
+	ret
+_divzero_upcall:
+   	// Call the C page fault handler.
+    //xchg %bx, %bx
+	pushl %esp			// function argument: pointer to UTF
+	movl _divzero_handler, %eax
+	call *%eax
+	addl $4, %esp			// pop function argument
+	
+	//xchg %bx, %bx
+	//设置返回到发生页错误的地址
+	movl	0x30(%esp), %eax
+	subl	$0x4, %eax
+	movl	%eax, 0x30(%esp)
+	movl	0x28(%esp), %ebx
+	movl	%ebx, (%eax)
+
+	// Restore the trap-time registers.
+	// LAB 4: Your code here.
+
+	//弹出通用寄存器
+	addl	$0x8, %esp
+	popal
+
+	// Restore eflags from the stack.
+	// LAB 4: Your code here.
+
+	//弹出状态寄存器
+	addl	$0x4, %esp
+	popfl
+
+	// Switch back to the adjusted trap-time stack.
+	// LAB 4: Your code here.
+
+	//切换esp到原始栈
+	pop	%esp
 
 	// Return to re-execute the instruction that faulted.
 	// LAB 4: Your code here.

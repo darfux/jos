@@ -12,8 +12,10 @@ fsipcbuf:
 	.globl fdtab
 fdtab:
 	.space PGSIZE
-
-
+	
+	.globl execipcbuf
+execipcbuf:
+	.space PGSIZE*2
 
 // Define the global symbols 'envs', 'pages', 'vpt', and 'vpd'
 // so that they can be used in C as if they were ordinary global arrays.

@@ -19,10 +19,13 @@
 #include <inc/trap.h>
 
 #include <inc/fs.h>
+#include <inc/execer.h>
 #include <inc/fd.h>
 #include <inc/args.h>
 
 #define USED(x)		(void)(x)
+
+#define EXESERV 2
 
 // libos.c or entry.S
 extern char *binaryname;
@@ -33,7 +36,9 @@ void	exit(void);
 
 // pgfault.c
 void	set_pgfault_handler(void (*handler)(struct UTrapframe *utf));
-
+//--------------------------LX-------------
+void	set_divzero_handler(void (*handler)(struct UTrapframe *utf));
+//--------------------------LX--------------
 // readline.c
 char*	readline(const char *buf);
 
@@ -53,6 +58,12 @@ int	sys_page_map(envid_t src_env, void *src_pg,
 int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
+int sys_env_clean_for_exec(envid_t envid);
+//for lab5 ex7 exec challenge
+// int sys_exec(envid_t envid,  const char *prog, const char **argv);
+//------------------------LX-------------------------
+int	sys_env_set_divzero_upcall(envid_t env, void *upcall);
+//------------------------LX-------------------------
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t sys_exofork(void) __attribute__((always_inline));
@@ -110,6 +121,10 @@ int	pageref(void *addr);
 // spawn.c
 envid_t	spawn(const char *program, const char **argv);
 envid_t	spawnl(const char *program, const char *arg0, ...);
+
+//for lab5 ex7 exec challenge
+void	exec(const char *program);
+// envid_t	execl(const char *program, const char *arg0, ...);
 
 
 /* File open modes */

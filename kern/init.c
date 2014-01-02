@@ -8,6 +8,7 @@
 #include <kern/console.h>
 #include <kern/pmap.h>
 #include <kern/kclock.h>
+#include <kern/kide.h>//for lab5 ex1 challenge
 #include <kern/env.h>
 #include <kern/trap.h>
 #include <kern/sched.h>
@@ -44,11 +45,17 @@ i386_init(void)
 	pic_init();
 	kclock_init();
 
+	// Lab 5 ide interrupt
+	kide_init();
+
 	// Should always have an idle process as first one.
 	ENV_CREATE(user_idle);
 
 	// Start fs.
 	ENV_CREATE(fs_fs);
+
+	// Start execer
+	ENV_CREATE(user_execer);
 
 	// Start init
 #if defined(TEST)
@@ -56,8 +63,11 @@ i386_init(void)
 	ENV_CREATE2(TEST, TESTSIZE);
 #else
 	// Touch all you want.
-	// ENV_CREATE(user_writemotd);
-	// ENV_CREATE(user_testfsipc);
+	ENV_CREATE(user_sfork);
+	// ENV_CREATE(user_over4mb);
+	// ENV_CREATE(user_spawnhello);
+	//ENV_CREATE(user_exechello);
+	// ENV_CREATE(user_pingpong);
 	// ENV_CREATE(user_icode);
 #endif
 

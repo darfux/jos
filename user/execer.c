@@ -1,91 +1,31 @@
 #include <inc/lib.h>
 #include <inc/elf.h>
 
+#define REQVA		0x0ffff000
 #define UTEMP2USTACK(addr)	((void*) (addr) + (USTACKTOP - PGSIZE) - UTEMP)
 #define UTEMP2			(UTEMP + PGSIZE)
 #define UTEMP3			(UTEMP2 + PGSIZE)
 
-// Helper functions for spawn.
+extern uint8_t execipcbuf[PGSIZE];	// page-aligned, declared in entry.S
+
 static int init_stack(envid_t child, const char **argv, uintptr_t *init_esp);
 
-// Spawn a child process from a program image loaded from the file system.
-// prog: the pathname of the program to run.
-// argv: pointer to null-terminated array of pointers to strings,
-// 	 which will be passed to the child as its command-line arguments.
-// Returns child envid on success, < 0 on failure.
+
+//=w=
+//this function is almost same as spawn
+//while it uses the current request env id&tf
+//to be the new env id&tf
+//and loads resource directly in it
 int
-spawn(const char *prog, const char **argv)
+exec_help(const char *prog, envid_t id)
 {
 	#define ELF_BUF_SIZE 512
 	unsigned char elf_buf[ELF_BUF_SIZE];
 	struct Trapframe child_tf;
-	envid_t child;
+	envid_t child = id;
 
-	// Insert your code, following approximately this procedure:
-	//
-	//   - Open the program file.
-	//
-	//   - Read the ELF header, as you have before, and sanity check its
-	//     magic number.  (Check out your load_icode!)
-	//
-	//   - Use sys_exofork() to create a new environment.
-	//
-	//   - Set child_tf to an initial struct Trapframe for the child.
-	//     Hint: The sys_exofork() system call has already created
-	//     a good basis, in envs[ENVX(child)].env_tf.
-	//     Hint: You must do something with the program's entry point.
-	//     What?  (See load_icode!)
-	//
-	//   - Call the init_stack() function above to set up
-	//     the initial stack page for the child environment.
-	//
-	//   - Map all of the program's segments that are of p_type
-	//     ELF_PROG_LOAD into the new environment's address space.
-	//     Use the p_flags field in the Proghdr for each segment
-	//     to determine how to map the segment:
-	//
-	//	* If the ELF flags do not include ELF_PROG_FLAG_WRITE,
-	//	  then the segment contains text and read-only data.
-	//	  Use read_map() to read the contents of this segment,
-	//	  and map the pages it returns directly into the child
-	//        so that multiple instances of the same program
-	//	  will share the same copy of the program text.
-	//        Be sure to map the program text read-only in the child.
-	//        Read_map is like read but returns a pointer to the data in
-	//        *blk rather than copying the data into another buffer.
-	//
-	//	* If the ELF segment flags DO include ELF_PROG_FLAG_WRITE,
-	//	  then the segment contains read/write data and bss.
-	//	  As with load_icode() in Lab 3, such an ELF segment
-	//	  occupies p_memsz bytes in memory, but only the FIRST
-	//	  p_filesz bytes of the segment are actually loaded
-	//	  from the executable file - you must clear the rest to zero.
-	//        For each page to be mapped for a read/write segment,
-	//        allocate a page in the parent temporarily at UTEMP,
-	//        read() the appropriate portion of the file into that page
-	//	  and/or use memset() to zero non-loaded portions.
-	//	  (You can avoid calling memset(), if you like, if
-	//	  page_alloc() returns zeroed pages already.)
-	//        Then insert the page mapping into the child.
-	//        Look at init_stack() for inspiration.
-	//        Be sure you understand why you can't use read_map() here.
-	//
-	//     Note: None of the segment addresses or lengths above
-	//     are guaranteed to be page-aligned, so you must deal with
-	//     these non-page-aligned values appropriately.
-	//     The ELF linker does, however, guarantee that no two segments
-	//     will overlap on the same page; and it guarantees that
-	//     PGOFF(ph->p_offset) == PGOFF(ph->p_va).
-	//
-	//   - Call sys_env_set_trapframe(child, &child_tf) to set up the
-	//     correct initial eip and esp values in the child.
-	//
-	//   - Start the child process running with sys_env_set_status().
-
-	// LAB 5: Your code here.
-	
-	// (void) child;
-	// panic("spawn unimplemented!");
+	const char* argv[] = { 0 };
+	sys_env_clean_for_exec(child);
 
 	int fd;
 	int r;
@@ -101,13 +41,7 @@ spawn(const char *prog, const char **argv)
 		return r;
 	}
 
-	memcpy(elf_buf, elf_tmp, ELF_BUF_SIZE);//adapter for code below
-	//===============
-	//The code below is directly copied from other's
-	//as I have little time to learn about elf loading
-	//which should have been done in lab3 but in fact not 
-	//as the TA did it for us then.
-	//=w=I may be back after this hellish term~
+	memcpy(elf_buf, elf_tmp, ELF_BUF_SIZE);
 
 
 	struct Elf * header;
@@ -120,25 +54,22 @@ spawn(const char *prog, const char **argv)
 	if (header->e_magic != ELF_MAGIC){		
 		close(fd);
 		return -E_NOT_EXEC;
-	}	  
-	if ((child = sys_exofork()) < 0 ){
-		close(fd);
-		return child;
 	}
 
 	//we are in parent - ren
 	
 	child_tf = envs[ENVX(child)].env_tf;
+	// envid_t tempPaID = envs[ENVX(child)].env_parent_id;
+
+	// envs[ENVX(child)].env_parent_id = sys_getenvid();
+	// sys_env_destroy(child);
+
 	child_tf.tf_eip = header->e_entry;
 	
 	if (( r = init_stack(child, argv, &init_esp)) < 0)
 		goto error;
 	
 	child_tf.tf_esp = init_esp;
-
-	if ((r = sys_env_set_trapframe(child, &child_tf)) < 0)
-		goto error;
-
 
 	//"load" executable in child's address space - ren
 
@@ -219,8 +150,13 @@ spawn(const char *prog, const char **argv)
 
 	sys_page_unmap(sys_getenvid(), UTEMP);
 
+	if ((r = sys_env_set_trapframe(child, &child_tf)) < 0)
+		goto error;
+
+	cprintf("[execer]I will raise up env %08x!\n", child);
 	if ((r = sys_env_set_status(child, ENV_RUNNABLE)) < 0)
 		goto error;
+	cprintf("[execer]Raising up over\n");
 
 	close(fd);
 	return 0;
@@ -229,24 +165,36 @@ error:
 	close(fd);
 	sys_env_destroy(child);						
 	return r;	
-
-//======================================================
 }
 
-// Spawn, taking command-line arguments array directly on the stack.
-int
-spawnl(const char *prog, const char *arg0, ...)
+void
+serve()
 {
-	return spawn(prog, &arg0);
+	uint32_t req, whom;
+	int perm, error;
+	cprintf("[execer]Server start,waiting for exec req...\n");
+	while (1)
+	{
+		perm = 0;
+		req = ipc_recv((int32_t *) &whom, (void*)REQVA, &perm);
+		char* prog = ((struct Exreq*)REQVA)->prog;
+		cprintf("[execer]i get %08x, prog: %s\n", req, prog) ;
+		sys_env_set_status(req, ENV_NOT_RUNNABLE);
+		error = exec_help(prog, req);
+		if(error<0) panic("[execer]error in execer: %e\n", error);
+		cprintf("[execer]exec %08x over\n", req);
+	}
 }
 
-// Set up the initial stack page for the new child process with envid 'child'
-// using the arguments array pointed to by 'argv',
-// which is a null-terminated array of pointers to null-terminated strings.
-//
-// On success, returns 0 and sets *init_esp
-// to the initial stack pointer with which the child should start.
-// Returns < 0 on failure.
+void
+umain(void)
+{
+	int r;
+	cprintf("i am execer %08x\n", env->env_id);
+	serve();
+}
+
+//just copy from spawn.c
 static int
 init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 {
@@ -369,6 +317,4 @@ error:
 	sys_page_unmap(0, UTEMP);
 	return r;
 }
-
-
 

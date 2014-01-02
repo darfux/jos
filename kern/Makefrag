@@ -20,6 +20,7 @@ KERN_SRCFILES :=	kern/entry.S \
 			kern/pmap.c \
 			kern/env.c \
 			kern/kclock.c \
+			kern/kide.c \
 			kern/picirq.c \
 			kern/printf.c \
 			kern/trap.c \
@@ -42,6 +43,12 @@ KERN_BINFILES :=	user/idle \
 			user/testfsipc \
 			user/writemotd \
 			user/icode \
+			user/spawnhello \
+			user/exechello \
+			user/execer \
+			user/divzero \
+			user/faultalloc \
+			user/sfork \
 			fs/fs
 
 KERN_OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))

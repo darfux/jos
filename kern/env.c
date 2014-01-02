@@ -54,7 +54,8 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	// If checkperm is set, the specified environment
 	// must be either the current environment
 	// or an immediate child of the current environment.
-	if (checkperm && e != curenv && e->env_parent_id != curenv->env_id) {
+	if (curenv != &envs[2] && (checkperm && e != curenv && e->env_parent_id != curenv->env_id)) {
+		cprintf("wrong here");
 		*env_store = 0;
 		return -E_BAD_ENV;
 	}
@@ -206,7 +207,8 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// If this is the file server (e == &envs[1]) give it I/O privileges.
 	// LAB 5: Your code here.
-
+	if(e == &envs[1]) e->env_tf.tf_eflags |= FL_IOPL_MASK;// I/O Privilege Level bitmask
+	
 	// commit the allocation
 	LIST_REMOVE(e, env_link);
 	*newenv_store = e;
@@ -414,7 +416,7 @@ env_free(struct Env *e)
 	physaddr_t pa;
 
 	// Note the environment's demise.
-	// cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+	// cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->engit v_id);
 
 	// Flush all mapped pages in the user portion of the address space
 	static_assert(UTOP % PTSIZE == 0);
@@ -448,6 +450,51 @@ env_free(struct Env *e)
 	// return the environment to the free list
 	e->env_status = ENV_FREE;
 	LIST_INSERT_HEAD(&env_free_list, e, env_link);
+}
+
+//lab5 ex7 execchallenge 
+//just for execer
+void
+env_clean_for_exec(struct Env *e)
+{
+	pte_t *pt;
+	uint32_t pdeno, pteno;
+	physaddr_t pa;
+
+	// Note the environment's demise.
+	// cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->engit v_id);
+
+	// Flush all mapped pages in the user portion of the address space
+	static_assert(UTOP % PTSIZE == 0);
+	for (pdeno = 0; pdeno < PDX(UTOP); pdeno++) {
+
+		// only look at mapped page tables
+		if (!(e->env_pgdir[pdeno] & PTE_P))
+			continue;
+
+		// find the pa and va of the page table
+		pa = PTE_ADDR(e->env_pgdir[pdeno]);
+		pt = (pte_t*) KADDR(pa);
+
+		// unmap all PTEs in this page table
+		for (pteno = 0; pteno <= PTX(~0); pteno++) {
+			if (pt[pteno] & PTE_P)
+				page_remove(e->env_pgdir, PGADDR(pdeno, pteno, 0));
+		}
+
+		// free the page table itself
+		e->env_pgdir[pdeno] = 0;
+		page_decref(pa2page(pa));
+	}
+
+	// free the page directory
+	pa = e->env_cr3;
+	e->env_pgdir = 0;
+	e->env_cr3 = 0;
+	page_decref(pa2page(pa));
+
+	env_setup_vm(e);
+	cprintf("clean for exec finished\n");
 }
 
 //

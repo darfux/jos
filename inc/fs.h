@@ -23,7 +23,14 @@
 // Number of direct block pointers in an indirect block
 #define NINDIRECT	(BLKSIZE / 4)
 
-#define MAXFILESIZE	(NINDIRECT * BLKSIZE)
+// #define MAXFILESIZE	(NINDIRECT * BLKSIZE)
+
+//lab5 ex6 4mb challenge
+//=w=
+//as the time is too late to do the max file size transform
+//I just set it to be big enough~
+#define MAXFILESIZE	0x3F3F3F3F
+
 
 struct File {
 	char f_name[MAXNAMELEN];	// filename

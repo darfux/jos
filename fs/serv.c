@@ -5,7 +5,6 @@
 
 #include <inc/x86.h>
 #include <inc/string.h>
-
 #include "fs.h"
 
 
@@ -192,7 +191,7 @@ out:
 void
 serve_map(envid_t envid, struct Fsreq_map *rq)
 {
-	int r;
+	int error;
 	char *blk;
 	struct OpenFile *o;
 	int perm;
@@ -206,14 +205,44 @@ serve_map(envid_t envid, struct Fsreq_map *rq)
 	// (see the O_ flags in inc/lib.h).
 	
 	// LAB 5: Your code here.
-	panic("serve_map not implemented");
+	// panic("serve_map not implemented");
+
+	//find the request file
+	error = openfile_lookup(envid, rq->req_fileid, &o);
+	if(error< 0) goto out;
+
+	off_t filesize		= o->o_file->f_size;
+	off_t req_offset	= rq->req_offset;
+	bool outOfSize = filesize<rq->req_offset;
+	if(outOfSize)
+	{
+	    error = -E_INVAL;
+	    goto out;
+	}
+
+	error = file_get_block(o->o_file, rq->req_offset/BLKSIZE, &blk);
+	if (error< 0) goto out;
+	
+	/* File open modes in lib.h*/
+	// #define	O_RDONLY	0x0000		/* open for reading only */
+	// #define	O_WRONLY	0x0001		/* open for writing only */
+	// #define	O_RDWR		0x0002		/* open for reading and writing */
+	// #define	O_ACCMODE	0x0003		/* mask for above modes */
+	bool readOnly = o->o_mode&O_RDONLY;
+	if(readOnly) ipc_send(envid, 0, blk, PTE_P|PTE_U|PTE_SHARE);	
+	else ipc_send(envid, 0, blk, PTE_P|PTE_U|PTE_W|PTE_SHARE);
+
+	return;
+
+out:
+	ipc_send(envid, error, 0, 0);
 }
 
 void
 serve_close(envid_t envid, struct Fsreq_close *rq)
 {
 	struct OpenFile *o;
-	int r;
+	int error;
 
 	if (debug)
 		cprintf("serve_close %08x %08x\n", envid, rq->req_fileid);
@@ -221,14 +250,22 @@ serve_close(envid_t envid, struct Fsreq_close *rq)
 	// Close the file.
 	
 	// LAB 5: Your code here.
-	panic("serve_close not implemented");
+	// panic("serve_close not implemented");
+	error = openfile_lookup(envid, rq->req_fileid, &o);
+	if(error< 0) goto out;
+
+	file_close(o->o_file);
+	error = 0;
+
+out:
+	ipc_send(envid, error, 0, 0);
 }
 
 void
 serve_remove(envid_t envid, struct Fsreq_remove *rq)
 {
 	char path[MAXPATHLEN];
-	int r;
+	int error;
 
 	if (debug)
 		cprintf("serve_map %08x %s\n", envid, rq->req_path);
@@ -238,14 +275,25 @@ serve_remove(envid_t envid, struct Fsreq_remove *rq)
 	// Hint: Make sure the path is null-terminated!
 
 	// LAB 5: Your code here.
-	panic("serve_remove not implemented");
+	// panic("serve_remove not implemented");
+
+	//Make sure the path is null-terminated
+	#define NULL_TERMINATE 0
+	memcpy(path, rq->req_path, MAXPATHLEN-1);
+	path[MAXPATHLEN-1] = NULL_TERMINATE;
+
+	//then remove the file
+	error = file_remove(rq->req_path);
+	if(error<0) ipc_send(envid, error, 0, 0);
+
+	return;
 }
 
 void
 serve_dirty(envid_t envid, struct Fsreq_dirty *rq)
 {
 	struct OpenFile *o;
-	int r;
+	int error;
 
 	if (debug)
 		cprintf("serve_dirty %08x %08x %08x\n", envid, rq->req_fileid, rq->req_offset);
@@ -254,7 +302,26 @@ serve_dirty(envid_t envid, struct Fsreq_dirty *rq)
 	// Returns 0 on success, < 0 on error.
 	
 	// LAB 5: Your code here.
-	panic("serve_dirty not implemented");
+	// panic("serve_dirty not implemented");
+	error = openfile_lookup(envid, rq->req_fileid, &o);
+	if(error< 0) goto out;
+
+	off_t filesize		= o->o_file->f_size;
+	off_t req_offset	= rq->req_offset;
+	bool outOfSize = filesize<rq->req_offset;
+	if(outOfSize)
+	{
+	    error = -E_INVAL;
+	    goto out;
+	}
+
+	off_t offset = rq->req_offset;
+	struct File* f = o->o_file;
+	error = file_dirty(f, offset);
+	if(error< 0) goto out;
+
+out:
+	ipc_send(envid, error, 0, 0);
 }
 
 void
@@ -279,6 +346,7 @@ serve(void)
 
 		// All requests must contain an argument page
 		if (!(perm & PTE_P)) {
+			panic("for test");
 			cprintf("Invalid request from %08x: no argument page\n",
 				whom);
 			continue; // just leave it hanging...

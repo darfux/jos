@@ -21,6 +21,7 @@ LIB_SRCFILES :=		$(LIB_SRCFILES) \
 			lib/file.c \
 			lib/fprintf.c \
 			lib/fsipc.c \
+			lib/execeripc.c \
 			lib/pageref.c \
 			lib/spawn.c
 
