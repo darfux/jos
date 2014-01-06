@@ -21,16 +21,18 @@ ide_wait_ready(bool check_error)
 
 	// while (((r = inb(0x1F7)) & (IDE_BSY|IDE_DRDY)) != IDE_DRDY)
 	// 	/* do nothing */;
-
+	//debugcprintf("1");
 	//for lab5 ex1 challenge
 	r = inb(0x3F6);
 	if((r&(IDE_BSY|IDE_DRDY)) != IDE_DRDY) 
 	{
+		cprintf("waiting.");
 		envid_t id = sys_getenvid();
 		sys_env_set_status(id, ENV_NOT_RUNNABLE);
 		sys_yield();
 	}
 
+	//debugcprintf("2");
 	if (check_error && (r & (IDE_DF|IDE_ERR)) != 0)
 		return -1;
 	return 0;
@@ -40,6 +42,7 @@ bool
 ide_probe_disk1(void)
 {
 	int r, x=0;
+	//debugcprintf("3");
 
 	// wait for Device 0 to be ready
 	ide_wait_ready(0);
@@ -53,13 +56,15 @@ ide_probe_disk1(void)
 
 	//for lab5 ex1 challenge
 	r = inb(0x3F6);
-	if((r&(IDE_BSY|IDE_DRDY)) != IDE_DRDY) 
+	if((r&(IDE_BSY|IDE_DRDY)) != IDE_DRDY)
 	{
+		cprintf("waiting.");
 		envid_t id = sys_getenvid();
 		sys_env_set_status(id, ENV_NOT_RUNNABLE);
 		sys_yield();
 	}
 
+	//debugcprintf("4");
 	// switch back to Device 0
 	outb(0x1F6, 0xE0 | (0<<4));
 
@@ -80,6 +85,7 @@ ide_read(uint32_t secno, void *dst, size_t nsecs)
 {
 	int r;
 
+	//debugcprintf("5");
 	assert(nsecs <= 256);
 
 	ide_wait_ready(0);
@@ -90,12 +96,14 @@ ide_read(uint32_t secno, void *dst, size_t nsecs)
 	outb(0x1F4, (secno >> 8) & 0xFF);
 	outb(0x1F5, (secno >> 16) & 0xFF);
 	outb(0x1F7, 0x20);	// CMD 0x20 means read sector
+	//debugcprintf("5.5");
 	for (; nsecs > 0; nsecs--, dst += SECTSIZE) {
 		if ((r = ide_wait_ready(1)) < 0)
 			return r;
 		insl(0x1F0, dst, SECTSIZE/4);
 	}
 	
+	//debugcprintf("6");
 	return 0;
 }
 
@@ -106,6 +114,7 @@ ide_write(uint32_t secno, const void *src, size_t nsecs)
 	
 	assert(nsecs <= 256);
 
+	//debugcprintf("7");
 	ide_wait_ready(0);
 
 	outb(0x1F6, 0xE0 | ((diskno&1)<<4) | ((secno>>24)&0x0F));
@@ -115,12 +124,14 @@ ide_write(uint32_t secno, const void *src, size_t nsecs)
 	outb(0x1F5, (secno >> 16) & 0xFF);
 	outb(0x1F7, 0x30);	// CMD 0x30 means write sector
 
+	//debugcprintf("8");
 	for (; nsecs > 0; nsecs--, src += SECTSIZE) {
 		if ((r = ide_wait_ready(1)) < 0)
 			return r;
 		outsl(0x1F0, src, SECTSIZE/4);
 	}
 
+	//debugcprintf("9");
 	return 0;
 }
 

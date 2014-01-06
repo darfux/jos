@@ -12,6 +12,9 @@
 #define IO_PIC1		0x20	// Master (IRQs 0-7)
 #define IO_PIC2		0xA0	// Slave (IRQs 8-15)
 
+// lab5 ide challange
+#define PIC_EOI		0x20 // End-of-interrupt command code
+
 #define IRQ_SLAVE	2	// IRQ at which slave connects to master
 #define IRQ_OFFSET	32	// IRQ 0 corresponds to int IRQ_OFFSET
 
