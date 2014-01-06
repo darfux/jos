@@ -415,8 +415,10 @@ ide_handler(struct Trapframe* tf)
 {
 	cprintf("[%08x] IDE is ready!\n", curenv->env_id);
 	struct Env* fs= &envs[1];
+	outb(0xA0, 0x20);
+	outb(0x20, 0x20);
+	// __asm __volatile("xchg %bx, %bx");
 	if(curenv == fs) env_run(curenv);
-
 	fs->env_status = ENV_RUNNABLE;
 	env_run(fs);
 }
